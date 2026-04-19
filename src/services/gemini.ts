@@ -5,13 +5,16 @@ let aiInstance: GoogleGenAI | null = null;
 
 function getAI() {
   if (!aiInstance) {
-    // Robust key fetching for Vite/Vercel/Node
-    const apiKey = (typeof process !== 'undefined' && process.env?.GEMINI_API_KEY) || 
-                   import.meta.env.VITE_GEMINI_API_KEY || 
-                   (typeof process !== 'undefined' && process.env?.VITE_GEMINI_API_KEY);
+    // Vite's standard way is import.meta.env.
+    // We also check process.env as a fallback for some environments.
+    const apiKey = import.meta.env.VITE_GEMINI_API_KEY || 
+                   // @ts-ignore
+                   (typeof process !== 'undefined' ? process.env.GEMINI_API_KEY : undefined) ||
+                   // @ts-ignore
+                   (typeof process !== 'undefined' ? process.env.VITE_GEMINI_API_KEY : undefined);
 
-    if (!apiKey || apiKey === "undefined" || apiKey === "") {
-      throw new Error("API Key Missing: Please ensure VITE_GEMINI_API_KEY is set in Vercel Environment Variables.");
+    if (!apiKey || apiKey === "undefined" || apiKey === "" || apiKey === "null") {
+      throw new Error(`API Key Missing. Found: ${apiKey}. Please ensure VITE_GEMINI_API_KEY is set in Vercel Settings and then trigger a REDEPLOY.`);
     }
     aiInstance = new GoogleGenAI({ apiKey });
   }
