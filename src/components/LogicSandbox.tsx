@@ -56,7 +56,7 @@ export default function LogicSandbox({ profile, onMenuClick }: LogicSandboxProps
     const activeMod = getActiveModule();
     try {
       const response = await generateLogicResponse(
-        `Hello, I would like to start training my "${activeMod?.title}". Please give me a warm up puzzle or concept breakdown to start.`, 
+        `Hello, I would like to start training my "${activeMod?.title}". Before giving me a puzzle, please briefly introduce the concept we are focusing on and check if I'm ready to begin processing this logically.`, 
         profile, 
         activeMod?.title || "Logic"
       );

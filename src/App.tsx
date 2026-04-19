@@ -17,7 +17,7 @@ import { Message, UserProfile } from "./types";
 import { auth, db, handleFirestoreError, OperationType } from "./lib/firebase";
 import { useAuthState } from "react-firebase-hooks/auth";
 import { doc, setDoc, onSnapshot, getDocFromServer } from "firebase/firestore";
-import { Loader2, Settings, Layers, Menu } from "lucide-react";
+import { Loader2, Settings, Layers, Menu, Moon, Sun } from "lucide-react";
 
 export default function App() {
   const [user, loading, authError] = useAuthState(auth);
@@ -32,6 +32,18 @@ export default function App() {
   const [profileLoading, setProfileLoading] = useState(true);
   const [connectionError, setConnectionError] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const [isDarkMode, setIsDarkMode] = useState(() => localStorage.getItem('theme') === 'dark');
+
+  // Sync dark mode class
+  useEffect(() => {
+    if (isDarkMode) {
+      document.documentElement.classList.add('dark');
+      localStorage.setItem('theme', 'dark');
+    } else {
+      document.documentElement.classList.remove('dark');
+      localStorage.setItem('theme', 'light');
+    }
+  }, [isDarkMode]);
 
   // Sync navigation with browser history
   useEffect(() => {
@@ -171,18 +183,28 @@ export default function App() {
     if (!user || !profile) return;
     const path = `users/${user.uid}`;
     
+    // Strip large attachments from history before saving to DB
+    const historyForDb = updatedHistory.map(m => ({
+      ...m,
+      attachments: m.attachments?.map(a => ({
+        ...a,
+        // If data is very large (e.g. video or huge image), omit it so Firestore doesn't crash
+        data: a.data && a.data.length > 50000 ? "" : a.data 
+      }))
+    }));
+
     let updatedThreads = profile.chatThreads || [];
     if (profile.activeThreadId) {
       updatedThreads = updatedThreads.map(t => 
         t.id === profile.activeThreadId 
-          ? { ...t, messages: updatedHistory, updatedAt: new Date().toISOString() } 
+          ? { ...t, messages: historyForDb, updatedAt: new Date().toISOString() } 
           : t
       );
     }
 
     const updatedProfile: UserProfile = {
       ...profile,
-      chatHistory: updatedHistory || profile.chatHistory || [],
+      chatHistory: historyForDb || profile.chatHistory || [],
       chatThreads: updatedThreads
     };
 
@@ -290,14 +312,24 @@ export default function App() {
                      </p>
                    </div>
 
-                   <div className="p-6 bg-slate-50 rounded-3xl border border-slate-100 space-y-3">
-                     <div className="flex items-center gap-2 text-amber-600">
-                       <Layers className="w-5 h-5" />
-                       <h3 className="text-sm font-black uppercase tracking-widest">Adaptive Logic</h3>
+                   <div className="p-6 bg-slate-50 rounded-3xl border border-slate-100 space-y-4">
+                     <div className="flex items-center gap-2 text-indigo-600">
+                       {isDarkMode ? <Moon className="w-5 h-5" /> : <Sun className="w-5 h-5" />}
+                       <h3 className="text-sm font-black uppercase tracking-widest">Interface Theme</h3>
                      </div>
                      <p className="text-[11px] text-slate-500 leading-relaxed font-medium">
-                       Domain fields (Engineering, Medicine, etc.) are now automatically derived from your "Faculty" or "Work" identifiers and do not require manual selection.
+                       Switch between light and dark visual themes to reduce eye strain in low-light environments.
                      </p>
+                     <button
+                       onClick={() => setIsDarkMode(!isDarkMode)}
+                       className={`w-full py-3 rounded-2xl text-xs font-black uppercase tracking-widest transition-all ${
+                         isDarkMode 
+                           ? 'bg-indigo-500/20 text-indigo-300 hover:bg-indigo-500/30' 
+                           : 'bg-slate-900 text-white hover:bg-slate-800'
+                       }`}
+                     >
+                       {isDarkMode ? 'Enable Light Mode' : 'Enable Dark Mode'}
+                     </button>
                    </div>
                 </div>
 

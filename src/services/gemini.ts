@@ -1,4 +1,4 @@
-import { GoogleGenAI } from "@google/genai";
+import { GoogleGenAI, Type } from "@google/genai";
 import { UserProfile } from "../types";
 
 let aiInstance: GoogleGenAI | null = null;
@@ -29,22 +29,28 @@ You are the AI-LA Advanced Logic Tutor. The user has explicitly opened a special
 Their current IQ baseline is: ${profile.iqScore || 'Unknown'}
 Their Preferred Language: ${profile.language || 'English'}
 
-YOUR GOAL:
-1. Break down difficult concepts (like the patterns from their IQ test) into easy-to-understand mental models.
-2. Provide them with challenging but solvable riddles, logic puzzles, or abstract reasoning questions related to "${moduleName}".
-3. Evaluate their answers step-by-step. Do not just say "Correct" or "Wrong" — explain the underlying logical principle so their brain learns the pattern.
-4. If they ask for explanations of general hard things (like Quantum physics, or a tough logic problem they encountered), act as an elite explainer using analogies suitable for their current cognitive score.
-5. Always answer in the language the user prefers. Give them a puzzle to start with if this is the first interaction in the module.
+YOUR GOAL & METHODOLOGY (NO ROTE LEARNING - لا للبصمجة):
+1. SOCRATIC METHOD: Never just give the answer to a riddle or puzzle. If they get it wrong, don't just say "Wrong, the answer is X." Instead, guide them step-by-step. Give them a tiny hint and let them figure out the next piece.
+2. NO ABRUPT PUZZLES ("مش خبط لزق"): Do NOT just throw a massive puzzle at them on the first message. When the session starts, welcome them, briefly explain the core concept of "${moduleName}", and ask if they are ready for a warmup challenge.
+3. TEACH *HOW* TO THINK: Before throwing a puzzle, you can explain a logical "mental model" (e.g., elimination, reverse engineering, pattern sequencing). 
+4. STEP-BY-STEP PROGRESSION: Start very easy, build up their confidence, then gradually increase the difficulty. If they struggle, break the current problem down into two smaller sub-problems.
+5. EXPLAINING COMPLEXITY: If they ask about difficult concepts (like Quantum physics or lateral thinking), explain it using real-world analogies tailored to their level.
+6. Always answer in the language the user prefers (if Arabic, use friendly, encouraging Egyptian style if appropriate).
 
-Do not use overly complex or rigid formatting, but make sure the logic is bulletproof.
+Make the experience feel like sitting with a brilliant, patient mentor who is slowly stretching their brain's capacity, not just an exam machine giving multiple-choice questions.
 `;
+
+    // ✅ Fix: تأكد إن history مش بيبدأ بـ 'model'
+    const cleanHistory = history[0]?.role === 'model'
+      ? history.slice(1)
+      : history;
 
     const parts = [{ text: message }];
 
     const response = await ai.models.generateContent({
       model: "gemini-3-flash-preview",
       contents: [
-        ...history,
+        ...cleanHistory,
         { role: 'user', parts }
       ],
       config: {
@@ -64,7 +70,6 @@ export async function generateAdaptiveResponse(
   profile: UserProfile,
   attachments: { name: string, type: string, data: string }[] = []
 ) {
-  // Cross-thread memory summary
   const otherThreadsSummary = profile.chatThreads
     ?.filter(t => t.id !== profile.activeThreadId)
     .map(t => `Thread "${t.title}": ${t.messages.slice(-2).map(m => m.content).join(' | ')}`)
@@ -101,7 +106,8 @@ ${otherThreadsSummary}
 ========================
 MULTIMODAL CAPABILITIES
 ========================
-- You can synthesize high-resolution images, PDF text, and data files.
+- You can synthesize high-resolution images, videos, PDF text, and data files.
+- If the user provides a video: Analyze the events, timeframe, and visual elements in the video sequence accurately, linking them to their registered Field if possible.
 - If the user provides an image: ALWAYS describe what you see in the context of their Field (${profile.field}) seamlessly before answering their question.
 - Perform deep visual/textual analysis on all attachments. Don't just acknowledge them—derive insights.
 
@@ -135,12 +141,12 @@ BEHAVIORAL PROTOCOLS & COGNITIVE CALIBRATION
 4) GROWTH ENGINE (GENTLE GUIDANCE):
 - Instead of strictly rewriting questions, if the user asks a very vague *technical* question, gently guide them to clarify. Only offer tips if it naturally fits the conversation. 
 
-5) CAREER SHIFT / OUT-OF-FIELD QUERIES:
+5) CAREER SHIFT / OUT-OF-FIELD QUERIES (ANY FIELD):
 - Compare the user's field (${profile.field}) and profession (${profile.role === 'Student' ? profile.faculty : profile.jobTitle}) with the topic they are asking about.
-- If it is a completely different field (e.g., a Civil Engineer asking about Programming):
-  a) Acknowledge the shift enthusiastically.
-  b) Switch to absolute beginner mode: Explain from scratch, step-by-step, with extreme simplicity and basic analogies. Do not assume prior knowledge.
-  c) PRE-ASSESSMENT: Before giving a long roadmap or heavy answer, explicitly offer to send them a "small quiz" or "short evaluation" to test what they already know about this new field. Wait for their agreement before providing the quiz or diving deeper.
+- If they are asking about ANY completely different field (e.g., a Civil Engineer asking about Programming, a Doctor asking about Marketing, an Accountant asking about Graphic Design):
+  a) CONVERSATION FIRST: Acknowledge the career shift enthusiastically. Chat with them a bit first to understand their motivation before dumping information.
+  b) BEGINNER MODE: Switch to absolute beginner mode for this new topic. Explain from absolute zero, step-by-step, with extreme simplicity and basic analogies. Do not assume prior knowledge in this new area.
+  c) PRE-ASSESSMENT OFFER: After the initial brief chat, explicitly offer to give them a "short quick quiz" or "small test" to gauge their current level in this new field so you know exactly where to start. You MUST wait for their agreement before giving the quiz or diving into a heavy technical roadmap.
 
 CURRENT MODE SUMMARY:
 - Accessibility: ${profile.accessibilityMode}
@@ -148,19 +154,26 @@ CURRENT MODE SUMMARY:
 - Language: ${profile.language || 'English'}
 `;
 
-  // Find the active thread's messages
   const activeThread = profile.chatThreads?.find(t => t.id === profile.activeThreadId);
   const currentMessages = activeThread?.messages || profile.chatHistory || [];
 
-  const history = currentMessages.map(m => ({
-    role: m.role === 'user' ? 'user' : 'model',
-    parts: [{ text: m.content }]
-  }));
+  // ✅ Fix: احذف welcome message وأي messages فاضية
+  const history = currentMessages
+    .filter(m => m.id !== 'welcome')
+    .filter(m => m.content?.trim())
+    .map(m => ({
+      role: m.role === 'user' ? 'user' : 'model' as 'user' | 'model',
+      parts: [{ text: m.content }]
+    }));
+
+  // ✅ Fix: تأكد إن history مش بيبدأ بـ 'model'
+  const cleanHistory = history[0]?.role === 'model'
+    ? history.slice(1)
+    : history;
 
   try {
     const ai = getAI();
     
-    // Prepare parts including attachments
     const parts: any[] = [{ text: message }];
     attachments.forEach(file => {
       parts.push({
@@ -174,15 +187,127 @@ CURRENT MODE SUMMARY:
     const response = await ai.models.generateContent({
       model: "gemini-3-flash-preview",
       contents: [
-        ...history,
+        ...cleanHistory,
         { role: 'user', parts }
       ],
       config: {
-        systemInstruction
+        systemInstruction,
+        tools: [{
+          functionDeclarations: [
+            {
+              name: "generateImage",
+              description: "Generate a custom high-quality image based on the user's request. Only use this if the user EXPLICITLY asks to generate, create, or draw an image/picture.",
+              parameters: {
+                type: Type.OBJECT,
+                properties: {
+                  prompt: {
+                    type: Type.STRING,
+                    description: "The detailed descriptive prompt for the image."
+                  }
+                },
+                required: ["prompt"]
+              }
+            },
+            {
+              name: "generateVideo",
+              description: "Generate a short video animation. Only use this if the user EXPLICITLY asks to generate or create a video/animation.",
+              parameters: {
+                type: Type.OBJECT,
+                properties: {
+                  prompt: {
+                    type: Type.STRING,
+                    description: "The detailed descriptive prompt for the video."
+                  }
+                },
+                required: ["prompt"]
+              }
+            }
+          ]
+        }]
       }
     });
 
-    return response.text || "I'm sorry, I couldn't generate a response.";
+    let generatedAttachments: { name: string, type: string, data: string }[] = [];
+    let finalText = response.text || "";
+
+    if (response.functionCalls && response.functionCalls.length > 0) {
+      const call = response.functionCalls[0];
+      
+      if (call.name === 'generateImage') {
+        const prompt = call.args.prompt as string;
+        try {
+          const imageResponse = await ai.models.generateContent({
+            model: 'gemini-2.5-flash-image',
+            contents: { parts: [{ text: prompt }] },
+            config: {
+              imageConfig: { aspectRatio: "16:9" }
+            }
+          });
+          
+          for (const part of imageResponse.candidates?.[0]?.content?.parts || []) {
+            if (part.inlineData) {
+              generatedAttachments.push({
+                name: `Generated_Image_${Date.now()}.png`,
+                type: 'image/png',
+                data: part.inlineData.data
+              });
+            }
+          }
+          finalText = `I have generated an image based on your prompt: "${prompt}".`;
+        } catch (e) {
+          console.error("Image generation failed", e);
+          finalText = "I apologize, but I encountered an error while trying to generate the image.";
+        }
+      } else if (call.name === 'generateVideo') {
+        const prompt = call.args.prompt as string;
+        try {
+          let operation = await ai.models.generateVideos({
+            model: 'veo-3.1-lite-generate-preview',
+            prompt: prompt,
+            config: {
+              numberOfVideos: 1,
+              resolution: '1080p',
+              aspectRatio: '16:9'
+            }
+          });
+          
+          // Poll for completion
+          while (!operation.done) {
+            await new Promise(resolve => setTimeout(resolve, 8000));
+            operation = await ai.operations.getVideosOperation({operation});
+          }
+          
+          const downloadLink = operation.response?.generatedVideos?.[0]?.video?.uri;
+          if (downloadLink) {
+             const apiKey = process.env.GEMINI_API_KEY!;
+             const vidResponse = await fetch(downloadLink, {
+               method: 'GET',
+               headers: { 'x-goog-api-key': apiKey },
+             });
+             const blob = await vidResponse.blob();
+             const buffer = await blob.arrayBuffer();
+             const base64 = btoa(new Uint8Array(buffer).reduce((data, byte) => data + String.fromCharCode(byte), ''));
+
+             generatedAttachments.push({
+               name: `Generated_Video_${Date.now()}.mp4`,
+               type: 'video/mp4',
+               data: base64
+             });
+             finalText = `I have successfully generated your video based on: "${prompt}".`;
+          } else {
+             finalText = "Video generation completed but the video uri was not found.";
+          }
+        } catch (e) {
+          console.error("Video generation failed", e);
+          finalText = "I apologize, but I encountered an error. Note that video generation can be highly intensive or occasionally fail due to system load. Please try again later.";
+        }
+      }
+    }
+
+    return {
+      text: finalText,
+      attachments: generatedAttachments
+    };
   } catch (error) {
     console.error("Error generating adaptive response:", error);
     return "I encountered an error while processing your request. Please try again.";

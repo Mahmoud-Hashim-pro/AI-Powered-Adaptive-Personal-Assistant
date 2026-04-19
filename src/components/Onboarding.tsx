@@ -41,7 +41,7 @@ const MASTER_QUESTION_POOL: Question[] = [
   { id: 20, text: "Light is to Darkness as Knowledge is to:", options: ["Ignorance", "Intelligence", "Books", "School"], correctAnswer: "Ignorance" }
 ];
 
-const QUESTION_TIMER = 30; // 30 seconds per question
+const QUESTION_TIMER = 60; // 60 seconds per question
 
 const UNIVERSITIES = [
   // Public Universities (الجامعات الحكومية)

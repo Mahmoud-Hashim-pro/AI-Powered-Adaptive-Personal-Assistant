@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect } from "react";
 import { Message, UserProfile } from "../types";
 import { generateAdaptiveResponse } from "../services/gemini";
-import { Send, Bot, User, Loader2, Sparkles, BrainCircuit, Paperclip, Image as ImageIcon, FileText, X, Accessibility, Menu } from "lucide-react";
+import { Send, Bot, User, Loader2, Sparkles, BrainCircuit, Paperclip, Image as ImageIcon, FileText, X, Accessibility, Menu, Download } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 
 interface ChatInterfaceProps {
@@ -24,7 +24,27 @@ export default function ChatInterface({ profile, onQuestionEvaluated, onMenuClic
   // Sync with active thread
   useEffect(() => {
     if (activeThread) {
-      setMessages(activeThread.messages);
+      setMessages(prev => {
+        // Only merge if we actually have incoming messages
+        if (!activeThread.messages) return prev;
+        
+        return activeThread.messages.map(incomingMsg => {
+          const localMsg = prev.find(p => p.id === incomingMsg.id);
+          
+          if (localMsg && localMsg.attachments && incomingMsg.attachments) {
+            const mergedAttachments = incomingMsg.attachments.map((incAtt, i) => {
+              const locAtt = localMsg.attachments![i];
+              // If incoming data was stripped because of 50kb limit, keep local data for the current session
+              if (!incAtt.data && locAtt && locAtt.data) {
+                return { ...incAtt, data: locAtt.data };
+              }
+              return incAtt;
+            });
+            return { ...incomingMsg, attachments: mergedAttachments };
+          }
+          return incomingMsg;
+        });
+      });
     } else {
       setMessages([
         {
@@ -124,12 +144,24 @@ export default function ChatInterface({ profile, onQuestionEvaluated, onMenuClic
     setSelectedFiles([]);
 
     try {
-      const response = await generateAdaptiveResponse(input, profile, attachmentsToSubmit);
+      const result = await generateAdaptiveResponse(input, profile, attachmentsToSubmit);
+      
+      let responseText = "AI communication error. Please try again.";
+      let newAttachments: { name: string, type: string, data: string }[] = [];
+
+      if (typeof result === 'string') {
+        responseText = result;
+      } else if (result) {
+        responseText = result.text || "Analyzed successfully.";
+        newAttachments = result.attachments || [];
+      }
+
       const assistantMessage: Message = {
         id: (Date.now() + 1).toString(),
         role: 'assistant',
-        content: response || "AI communication error. Please try again.",
-        timestamp: new Date().toISOString()
+        content: responseText,
+        timestamp: new Date().toISOString(),
+        attachments: newAttachments
       };
       
       const updatedHistory = [...newHistory, assistantMessage];
@@ -145,6 +177,16 @@ export default function ChatInterface({ profile, onQuestionEvaluated, onMenuClic
     }
   };
 
+  const handleDownload = (file: {name: string, type: string, data: string}) => {
+    if (!file || !file.data) return;
+    const link = document.createElement("a");
+    link.href = `data:${file.type};base64,${file.data}`;
+    link.download = file.name;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
   return (
     <div className="flex-1 flex flex-col h-screen bg-bg-card overflow-hidden relative">
       {/* File Preview Modal */}
@@ -155,23 +197,39 @@ export default function ChatInterface({ profile, onQuestionEvaluated, onMenuClic
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             className="fixed inset-0 z-[100] bg-black/90 flex items-center justify-center p-10"
-            onClick={() => setPreviewFile(null)}
+            onClick={(e) => {
+              if (e.target === e.currentTarget) setPreviewFile(null);
+            }}
           >
-            <button className="absolute top-10 right-10 text-white hover:text-primary transition-colors">
-              <X className="w-10 h-10" />
-            </button>
+            <div className="absolute top-10 right-10 flex gap-4">
+              {previewFile.data && (
+                <button title="Download" onClick={() => handleDownload(previewFile)} className="text-white hover:text-primary transition-colors bg-white/10 hover:bg-white/20 p-2 rounded-full backdrop-blur">
+                  <Download className="w-8 h-8" />
+                </button>
+              )}
+              <button title="Close" onClick={() => setPreviewFile(null)} className="text-white hover:text-primary transition-colors bg-white/10 hover:bg-white/20 p-2 rounded-full backdrop-blur">
+                <X className="w-8 h-8" />
+              </button>
+            </div>
             {previewFile.type.startsWith('image/') ? (
               <img 
                 src={`data:${previewFile.type};base64,${previewFile.data}`} 
                 alt={previewFile.name} 
                 className="max-w-full max-h-full object-contain shadow-2xl rounded-lg"
               />
+            ) : previewFile.type.startsWith('video/') ? (
+              <video 
+                src={`data:${previewFile.type};base64,${previewFile.data}`} 
+                controls
+                autoPlay
+                className="max-w-full max-h-full shadow-2xl rounded-lg"
+              />
             ) : (
               <div className="bg-white p-12 rounded-[40px] max-w-2xl w-full text-center space-y-6">
                 <FileText className="w-20 h-20 text-primary mx-auto" />
                 <h3 className="text-2xl font-black text-slate-900">{previewFile.name}</h3>
                 <p className="text-slate-500 font-medium italic">Full AI analysis of document content is active. Refer to AI-LA for deep insights.</p>
-                <button className="px-8 py-4 bg-primary text-white rounded-2xl font-black text-xs uppercase tracking-widest">Close Preview</button>
+                <button onClick={() => setPreviewFile(null)} className="px-8 py-4 bg-primary text-white rounded-2xl font-black text-xs uppercase tracking-widest">Close Preview</button>
               </div>
             )}
           </motion.div>
@@ -222,27 +280,53 @@ export default function ChatInterface({ profile, onQuestionEvaluated, onMenuClic
                     <div className="bg-[#f1f5f9] p-6 rounded-xl border-l-4 border-primary italic text-text-main shadow-sm">
                       "{m.content}"
                     </div>
-                    {m.attachments?.map((file, idx) => (
-                      <button 
-                        key={idx} 
-                        onClick={() => setPreviewFile(file)}
-                        className="flex items-center gap-3 p-3 bg-white border border-slate-200 rounded-xl max-w-sm hover:border-primary hover:shadow-md transition-all group"
-                      >
-                         {file.type.startsWith('image/') ? (
-                           <div className="w-10 h-10 rounded-lg overflow-hidden bg-slate-100 border border-slate-200">
-                             <img src={`data:${file.type};base64,${file.data}`} className="w-full h-full object-cover group-hover:scale-110 transition-transform" />
+                    {m.attachments?.length ? m.attachments.map((file, idx) => (
+                      <div key={idx} className="relative group max-w-sm">
+                        <button 
+                          onClick={() => file.data && setPreviewFile(file)}
+                          className={`w-full flex items-center gap-3 p-3 bg-white border border-slate-200 rounded-xl transition-all ${file.data ? 'hover:border-primary hover:shadow-md cursor-pointer' : 'opacity-80 cursor-default'}`}
+                        >
+                           {!file.data ? (
+                             <div className="w-10 h-10 shrink-0 rounded-lg bg-orange-50 flex items-center justify-center border border-orange-100">
+                               <FileText className="w-4 h-4 text-orange-400" />
+                             </div>
+                           ) : file.type.startsWith('image/') ? (
+                             <div className="w-10 h-10 shrink-0 rounded-lg overflow-hidden bg-slate-100 border border-slate-200">
+                               <img src={`data:${file.type};base64,${file.data}`} className="w-full h-full object-cover group-hover:scale-110 transition-transform" />
+                             </div>
+                           ) : file.type.startsWith('video/') ? (
+                             <div className="w-10 h-10 shrink-0 rounded-lg bg-slate-800 flex items-center justify-center border border-slate-200 overflow-hidden relative">
+                               <video src={`data:${file.type};base64,${file.data}`} className="w-full h-full object-cover opacity-50" />
+                               <div className="absolute inset-0 flex items-center justify-center">
+                                 <div className="w-0 h-0 border-t-[4px] border-t-transparent border-l-[6px] border-l-white border-b-[4px] border-b-transparent ml-0.5"></div>
+                               </div>
+                             </div>
+                           ) : (
+                             <div className="w-10 h-10 shrink-0 rounded-lg bg-slate-100 flex items-center justify-center">
+                               <FileText className="w-5 h-5 text-primary" />
+                             </div>
+                           )}
+                           <div className="text-left flex-1 min-w-0">
+                             <p className="text-xs font-bold text-slate-700 truncate w-full">{file.name}</p>
+                             <p className={`text-[10px] font-bold uppercase tracking-widest ${file.data ? 'text-slate-400' : 'text-orange-400'}`}>
+                               {file.data ? 'Click to View' : 'Media Expired'}
+                             </p>
                            </div>
-                         ) : (
-                           <div className="w-10 h-10 rounded-lg bg-slate-100 flex items-center justify-center">
-                             <FileText className="w-5 h-5 text-primary" />
-                           </div>
-                         )}
-                         <div className="text-left">
-                           <p className="text-xs font-bold text-slate-700 truncate w-32">{file.name}</p>
-                           <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest">Click to View</p>
-                         </div>
-                      </button>
-                    ))}
+                        </button>
+                        {file.data && (
+                          <button 
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleDownload(file);
+                            }}
+                            className="absolute right-2 top-1/2 -translate-y-1/2 bg-slate-100 hover:bg-primary hover:text-white p-2 rounded-full text-slate-500 opacity-0 group-hover:opacity-100 transition-all"
+                            title="Download"
+                          >
+                            <Download className="w-4 h-4" />
+                          </button>
+                        )}
+                      </div>
+                    )) : null}
                     <div className="flex items-center gap-2 mt-1">
                       <span className={`text-[9px] font-black uppercase px-2 py-0.5 rounded border shadow-sm ${
                         evaluateQuestionQuality(m.content) >= 8 ? 'bg-emerald-50 text-emerald-700 border-emerald-100' :
@@ -272,6 +356,55 @@ export default function ChatInterface({ profile, onQuestionEvaluated, onMenuClic
                         return <p key={i} className="mb-4">{line}</p>;
                       })}
                     </div>
+                    
+                    {/* Assistant Attachments (Generated Images/Videos) */}
+                    {m.attachments && m.attachments.length > 0 && (
+                      <div className="flex flex-wrap gap-4 mt-6">
+                        {m.attachments.map((file, idx) => (
+                          <div key={idx} className="relative group">
+                            <button 
+                              onClick={() => file.data && setPreviewFile(file)}
+                              className={`flex flex-col items-center gap-2 p-2 bg-white border border-slate-200 rounded-xl transition-all overflow-hidden ${file.data ? 'hover:border-primary hover:shadow-md cursor-pointer' : 'opacity-80 cursor-default'}`}                             >
+                               {!file.data ? (
+                                 <div className="w-48 h-48 rounded-lg bg-orange-50 flex items-center justify-center border border-orange-100 flex-col gap-2">
+                                   <FileText className="w-10 h-10 text-orange-400" />
+                                   <span className="text-[10px] font-bold text-orange-500 uppercase">Media Expired</span>
+                                 </div>
+                               ) : file.type.startsWith('image/') ? (
+                                 <div className="w-48 h-48 rounded-lg overflow-hidden bg-slate-100 border border-slate-200">
+                                   <img src={`data:${file.type};base64,${file.data}`} className="w-full h-full object-cover group-hover:scale-105 transition-transform" />
+                                 </div>
+                               ) : file.type.startsWith('video/') ? (
+                                 <div className="w-48 h-48 rounded-lg bg-slate-800 flex items-center justify-center border border-slate-200 overflow-hidden relative">
+                                   <video src={`data:${file.type};base64,${file.data}`} className="w-full h-full object-cover opacity-70" />
+                                   <div className="absolute inset-0 flex items-center justify-center group-hover:scale-110 transition-transform">
+                                     <div className="w-0 h-0 border-t-[10px] border-t-transparent border-l-[15px] border-l-white border-b-[10px] border-b-transparent ml-1 drop-shadow-lg"></div>
+                                   </div>
+                                 </div>
+                               ) : null}
+                               <div className="text-center w-full px-2">
+                                 <p className="text-[10px] font-bold text-slate-700 truncate w-full">{file.name}</p>
+                                 <p className={`text-[9px] font-bold uppercase tracking-widest mt-1 ${file.data ? 'text-slate-400' : 'text-orange-400'}`}>
+                                   {file.data ? 'Click to Enlarge' : 'Media Removed (Size Limit)'}
+                                 </p>
+                               </div>
+                            </button>
+                            {file.data && (
+                              <button 
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleDownload(file);
+                                }}
+                                className="absolute top-4 right-4 bg-black/60 hover:bg-black p-2 rounded-full text-white opacity-0 group-hover:opacity-100 transition-all backdrop-blur-sm"
+                                title="Download"
+                              >
+                                <Download className="w-4 h-4" />
+                              </button>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                    )}
                   </div>
                 )}
               </motion.div>
@@ -321,7 +454,7 @@ export default function ChatInterface({ profile, onQuestionEvaluated, onMenuClic
               onChange={handleFileChange}
               className="hidden"
               multiple
-              accept="image/*,application/pdf,.doc,.docx,.txt"
+              accept="image/*,video/mp4,video/webm,video/quicktime,application/pdf,.doc,.docx,.txt"
             />
             <div className="absolute left-4 top-1/2 -translate-y-1/2 flex items-center gap-2">
                <button 
