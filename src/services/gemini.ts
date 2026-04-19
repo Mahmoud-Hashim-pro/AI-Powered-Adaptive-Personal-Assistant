@@ -5,11 +5,13 @@ let aiInstance: GoogleGenAI | null = null;
 
 function getAI() {
   if (!aiInstance) {
-    // Use import.meta.env as a fallback for Vercel/Vite bundles, and process.env for Node
-    // @ts-ignore
-    const apiKey = typeof process !== 'undefined' && process.env && process.env.GEMINI_API_KEY ? process.env.GEMINI_API_KEY : import.meta.env.VITE_GEMINI_API_KEY;
-    if (!apiKey || apiKey === "undefined") {
-      throw new Error("GEMINI_API_KEY is not configured in environment variables.");
+    // Robust key fetching for Vite/Vercel/Node
+    const apiKey = (typeof process !== 'undefined' && process.env?.GEMINI_API_KEY) || 
+                   import.meta.env.VITE_GEMINI_API_KEY || 
+                   (typeof process !== 'undefined' && process.env?.VITE_GEMINI_API_KEY);
+
+    if (!apiKey || apiKey === "undefined" || apiKey === "") {
+      throw new Error("API Key Missing: Please ensure VITE_GEMINI_API_KEY is set in Vercel Environment Variables.");
     }
     aiInstance = new GoogleGenAI({ apiKey });
   }
@@ -315,8 +317,9 @@ CURRENT MODE SUMMARY:
       text: finalText,
       attachments: generatedAttachments
     };
-  } catch (error) {
+  } catch (error: any) {
     console.error("Error generating adaptive response:", error);
-    return "I encountered an error while processing your request. Please try again.";
+    const errorMsg = error?.message || "Unknown error";
+    return `I encountered an error. Technical details: ${errorMsg}. Please ensure your API key is correctly set in Vercel.`;
   }
 }
