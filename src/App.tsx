@@ -32,7 +32,11 @@ export default function App() {
   const [profileLoading, setProfileLoading] = useState(true);
   const [connectionError, setConnectionError] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
-  const [isDarkMode, setIsDarkMode] = useState(() => localStorage.getItem('theme') === 'dark');
+  const [isDarkMode, setIsDarkMode] = useState(() => {
+    const saved = localStorage.getItem('theme');
+    if (saved) return saved === 'dark';
+    return window.matchMedia('(prefers-color-scheme: dark)').matches;
+  });
 
   // Sync dark mode class
   useEffect(() => {
@@ -167,13 +171,14 @@ export default function App() {
     const updatedProfile: UserProfile = {
       ...profile,
       points: profile.points + (score * 5),
-      questionHistory: [...profile.questionHistory, { score, date: new Date().toISOString() }],
+      questionHistory: [...(profile.questionHistory || []), { score, date: new Date().toISOString() }],
       chatHistory: updatedHistory || profile.chatHistory || [], // Support legacy global sync
       chatThreads: updatedThreads
     };
 
     try {
-      await setDoc(doc(db, path), updatedProfile);
+      const cleanProfile = JSON.parse(JSON.stringify(updatedProfile));
+      await setDoc(doc(db, path), cleanProfile);
     } catch (err) {
       handleFirestoreError(err, OperationType.UPDATE, path);
     }
@@ -194,7 +199,8 @@ export default function App() {
     }));
 
     let updatedThreads = profile.chatThreads || [];
-    if (profile.activeThreadId) {
+    // Only update if the thread still exists in the local state (hasn't been cleared)
+    if (profile.activeThreadId && updatedThreads.some(t => t.id === profile.activeThreadId)) {
       updatedThreads = updatedThreads.map(t => 
         t.id === profile.activeThreadId 
           ? { ...t, messages: historyForDb, updatedAt: new Date().toISOString() } 
@@ -209,7 +215,8 @@ export default function App() {
     };
 
     try {
-      await setDoc(doc(db, path), updatedProfile);
+      const cleanProfile = JSON.parse(JSON.stringify(updatedProfile));
+      await setDoc(doc(db, path), cleanProfile);
     } catch (err) {
       handleFirestoreError(err, OperationType.UPDATE, path);
     }
@@ -387,7 +394,8 @@ export default function App() {
               if (!user) return;
               const path = `users/${user.uid}`;
               try {
-                await setDoc(doc(db, path), p);
+                const cleanProfile = JSON.parse(JSON.stringify(p));
+                await setDoc(doc(db, path), cleanProfile);
               } catch (err) {
                 handleFirestoreError(err, OperationType.UPDATE, path);
               }

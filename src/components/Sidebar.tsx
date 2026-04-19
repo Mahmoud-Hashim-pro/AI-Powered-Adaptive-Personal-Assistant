@@ -84,32 +84,49 @@ export default function Sidebar({ profile, setProfile, currentView, setCurrentVi
 
         {(profile.chatThreads?.length || 0) > 0 && (
           <div className="flex flex-col gap-2">
-            <div className="text-[10px] font-black text-slate-300 uppercase tracking-widest mb-1 ml-2">Chat History</div>
+            <div className="flex items-center justify-between mb-1 ml-2 mr-2">
+              <div className="text-[10px] font-black text-slate-300 uppercase tracking-widest">Chat History</div>
+              <button 
+                onClick={() => setProfile({ ...profile, chatThreads: [], activeThreadId: undefined })}
+                className="text-[9px] font-bold text-rose-400 hover:text-rose-600 transition-colors uppercase tracking-widest"
+                title="Clear all chats"
+              >
+                Clear All
+              </button>
+            </div>
             <div className="flex flex-col gap-1 max-h-[160px] overflow-y-auto custom-scrollbar pr-2">
-              {profile.chatThreads?.slice().reverse().map((t) => (
-                <div key={t.id} className={`flex items-center justify-between gap-1 px-4 py-2 rounded-xl text-[10px] font-bold text-left transition-all group ${profile.activeThreadId === t.id ? 'bg-primary/5 border border-primary text-primary' : 'text-slate-500 hover:bg-slate-50 border border-transparent'}`}>
-                  <button
-                    onClick={() => switchThread(t.id)}
-                    className="truncate flex-1 py-1 text-left"
-                  >
-                    {t.title}
-                  </button>
-                  <div className="flex items-center opacity-0 group-hover:opacity-100 transition-opacity">
-                    <button 
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        const updatedThreads = profile.chatThreads?.filter(thread => thread.id !== t.id) || [];
-                        setProfile({ ...profile, chatThreads: updatedThreads, activeThreadId: updatedThreads.length > 0 ? updatedThreads[updatedThreads.length - 1].id : undefined });
-                      }}
-                      className="p-1.5 hover:bg-rose-100 hover:text-rose-600 rounded-md transition-colors"
-                      title="Delete Chat"
+              {profile.chatThreads?.slice().reverse().map((t) => {
+                const lastMessage = t.messages && t.messages.length > 0 ? t.messages[t.messages.length - 1] : null;
+                const snippet = lastMessage ? lastMessage.content || 'Media attached' : 'No messages yet';
+                
+                return (
+                  <div key={t.id} className={`flex items-center justify-between gap-1 px-4 py-2 rounded-xl text-[10px] font-bold text-left transition-all group ${profile.activeThreadId === t.id ? 'bg-primary/5 border border-primary text-primary' : 'text-slate-500 hover:bg-slate-50 border border-transparent'}`}>
+                    <button
+                      onClick={() => switchThread(t.id)}
+                      className="flex flex-col flex-1 py-1 text-left overflow-hidden min-w-0"
                     >
-                      <X className="w-3 h-3" />
+                      <span className="truncate w-full font-bold">{t.title}</span>
+                      <span className="truncate w-full text-[9px] opacity-70 mt-0.5 font-normal">
+                        {snippet}
+                      </span>
                     </button>
+                    <div className="flex items-center opacity-0 group-hover:opacity-100 transition-opacity">
+                      <button 
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          const updatedThreads = profile.chatThreads?.filter(thread => thread.id !== t.id) || [];
+                          setProfile({ ...profile, chatThreads: updatedThreads, activeThreadId: updatedThreads.length > 0 ? updatedThreads[updatedThreads.length - 1].id : undefined });
+                        }}
+                        className="p-1.5 hover:bg-rose-100 hover:text-rose-600 rounded-md transition-colors"
+                        title="Delete Chat"
+                      >
+                        <X className="w-3 h-3" />
+                      </button>
+                    </div>
+                    {profile.activeThreadId === t.id && <ChevronRight className="w-3 h-3 flex-shrink-0 ml-1" />}
                   </div>
-                  {profile.activeThreadId === t.id && <ChevronRight className="w-3 h-3 flex-shrink-0 ml-1" />}
-                </div>
-              ))}
+                );
+              })}
             </div>
           </div>
         )}

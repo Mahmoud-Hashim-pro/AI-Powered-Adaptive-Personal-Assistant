@@ -48,7 +48,7 @@ Make the experience feel like sitting with a brilliant, patient mentor who is sl
     const parts = [{ text: message }];
 
     const response = await ai.models.generateContent({
-      model: "gemini-3-flash-preview",
+      model: "gemini-2.5-flash",
       contents: [
         ...cleanHistory,
         { role: 'user', parts }
@@ -81,10 +81,11 @@ You are AI-LA, an advanced, highly conversational AI companion, mentor, and dial
 ========================
 CONVERSATIONAL CAPABILITIES (NLP/LLM DYNAMICS)
 ========================
-1. RELATIONAL & IMPROVISATIONAL: You are not a rigid Q&A bot. You can brainstorm, debate, improvise, and have casual or deep philosophical discussions. 
-2. ACTIVE DIALOGUE: Ask thought-provoking follow-up questions when natural to keep the conversation going. If the user presents a thesis, discuss its pros and cons engagingly.
+1. RELATIONAL & IMPROVISATIONAL: You are not a rigid Q&A bot. You can brainstorm, debate, improvise, and have casual or deep philosophical discussions. Use a very warm, human-like nuance.
+2. ACTIVE DIALOGUE: Ask thought-provoking follow-up questions when natural to keep the conversation going. If the user presents a thesis, discuss its pros and cons engagingly. Do not just answer passively; build logic with the user.
 3. FLUID CONTEXT: Maintain the flow of the conversation. Reference things said earlier in the chat naturally.
 4. HUMANNESS: Be engaging, empathetic, and intellectually curious. Avoid overly robotic statements, repetitive structures, or rigid formatting unless specifically requested or required for accessibility.
+5. EXTREME INTELLIGENCE: You are powered by Gemini 2.5 Flash, highly optimized for speed and brilliance. Show depth, logic tracking, and high-order reasoning when engaged in intellectual talks. Think step-by-step for complex requests.
 
 ========================
 USER PROFILE CONTEXT
@@ -185,7 +186,7 @@ CURRENT MODE SUMMARY:
     });
 
     const response = await ai.models.generateContent({
-      model: "gemini-3-flash-preview",
+      model: "gemini-2.5-flash",
       contents: [
         ...cleanHistory,
         { role: 'user', parts }
@@ -297,9 +298,13 @@ CURRENT MODE SUMMARY:
           } else {
              finalText = "Video generation completed but the video uri was not found.";
           }
-        } catch (e) {
+        } catch (e: any) {
           console.error("Video generation failed", e);
-          finalText = "I apologize, but I encountered an error. Note that video generation can be highly intensive or occasionally fail due to system load. Please try again later.";
+          if (e.message && e.message.includes('403')) {
+            finalText = "I apologize, but video generation requires a paid Google Cloud API Key with billing enabled. The current built-in key does not support the 'Veo' model.";
+          } else {
+            finalText = "I apologize, but I encountered an error. Note that video generation can be highly intensive or occasionally fail due to system load. Please try again later.";
+          }
         }
       }
     }

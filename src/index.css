@@ -101,7 +101,7 @@
 /* Exception: Special cases where we don't want inversion (like buttons that are already dark in light mode) */
 .dark .bg-slate-900,
 .dark .bg-slate-950 {
-  background-color: #slate-900;
+  background-color: #0f172a !important;
 }
 .dark .bg-slate-900.text-white {
   background-color: #2563eb !important; /* Make primary button blue in dark mode to stand out */
