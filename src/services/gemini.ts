@@ -1,7 +1,7 @@
-import { GoogleGenAI, Type } from "@google/genai";
+import { GoogleGenerativeAI, SchemaType } from "@google/generative-ai";
 import { UserProfile } from "../types";
 
-let aiInstance: GoogleGenAI | null = null;
+let aiInstance: GoogleGenerativeAI | null = null;
 
 function getAI() {
   if (!aiInstance) {
@@ -14,7 +14,7 @@ function getAI() {
     if (!apiKey || apiKey === "undefined" || apiKey === "" || apiKey === "null") {
       throw new Error(`API Key Missing. Please ensure VITE_GEMINI_API_KEY is set in your environment variables and REDEPLOY.`);
     }
-    aiInstance = new GoogleGenAI({ apiKey });
+    aiInstance = new GoogleGenerativeAI(apiKey);
   }
   return aiInstance;
 }
@@ -45,25 +45,24 @@ YOUR GOAL & METHODOLOGY (NO ROTE LEARNING - لا للبصمجة):
 Make the experience feel like sitting with a brilliant, patient mentor who is slowly stretching their brain's capacity, not just an exam machine giving multiple-choice questions.
 `;
 
-    // ✅ Fix: تأكد إن history مش بيبدأ بـ 'model'
-    const cleanHistory = history[0]?.role === 'model'
-      ? history.slice(1)
-      : history;
+    const cleanHistory = history.map(h => ({
+      role: h.role,
+      parts: h.parts
+    }));
 
-    const parts = [{ text: message }];
-
-    const response = await ai.models.generateContent({
+    const model = ai.getGenerativeModel({ 
       model: "gemini-1.5-flash",
-      contents: [
-        ...cleanHistory,
-        { role: 'user', parts }
-      ],
-      config: {
-        systemInstruction
-      }
+      systemInstruction: systemInstruction 
     });
 
-    return response.text || "Logic module encountered an error.";
+    const result = await model.generateContent({
+      contents: [
+        ...cleanHistory,
+        { role: 'user', parts: [{ text: message }] }
+      ]
+    });
+
+    return result.response.text() || "Logic module encountered an error.";
   } catch (error) {
     console.error("Error generating logic response:", error);
     return "The logic training uplink experienced an error. Please try again.";
@@ -90,7 +89,7 @@ CONVERSATIONAL CAPABILITIES (NLP/LLM DYNAMICS)
 2. ACTIVE DIALOGUE: Ask thought-provoking follow-up questions when natural to keep the conversation going. If the user presents a thesis, discuss its pros and cons engagingly. Do not just answer passively; build logic with the user.
 3. FLUID CONTEXT: Maintain the flow of the conversation. Reference things said earlier in the chat naturally.
 4. HUMANNESS: Be engaging, empathetic, and intellectually curious. Avoid overly robotic statements, repetitive structures, or rigid formatting unless specifically requested or required for accessibility.
-5. EXTREME INTELLIGENCE: You are powered by Gemini 2.5 Flash, highly optimized for speed and brilliance. Show depth, logic tracking, and high-order reasoning when engaged in intellectual talks. Think step-by-step for complex requests.
+5. EXTREME INTELLIGENCE: You are powered by Gemini 1.5 Flash, highly optimized for speed and brilliance. Show depth, logic tracking, and high-order reasoning when engaged in intellectual talks. Think step-by-step for complex requests.
 
 ========================
 USER PROFILE CONTEXT
@@ -112,8 +111,7 @@ ${otherThreadsSummary}
 ========================
 MULTIMODAL CAPABILITIES
 ========================
-- You can synthesize high-resolution images, videos, PDF text, and data files.
-- If the user provides a video: Analyze the events, timeframe, and visual elements in the video sequence accurately, linking them to their registered Field if possible.
+- You can synthesize high-resolution images, PDF text, and data files.
 - If the user provides an image: ALWAYS describe what you see in the context of their Field (${profile.field}) seamlessly before answering their question.
 - Perform deep visual/textual analysis on all attachments. Don't just acknowledge them—derive insights.
 
@@ -125,7 +123,6 @@ BEHAVIORAL PROTOCOLS & COGNITIVE CALIBRATION
 
 1) LANGUAGE & TONE (DYNAMIC MIRRORING):
 - You MUST automatically mirror the language the user is speaking in the current prompt. If they speak Arabic, reply in Arabic. If they speak English, reply in English, and so forth.
-- The "Preferred Language" parameter (${profile.language || 'English'}) should only act as a fallback if the user's language is ambiguous or if they ask you a general request without a clear language preference.
 - For Arabic, if the user's level is BASIC, use "Egyptian Slang" (بالبلدي) to make the conversation feel like they are talking to a smart friend.
 
 2) COGNITIVE CALIBRATION:
@@ -142,28 +139,16 @@ BEHAVIORAL PROTOCOLS & COGNITIVE CALIBRATION
 3) ADAPTIVE FORMATTING (ACCESSIBILITY):
 - Visual: Bulleted/Numbered lists ONLY. No paragraph block longer than 3 lines. No italic-heavy text. Each step MUST start with an action verb.
 - Speech: No markdown symbols (no #, **, etc.). Short, concise sentences. Use verbal transitions like "First...", "Second...", "Finally...".
-- Sign-support: Sentences MUST be under 12 words. No idioms, metaphors, or culturally ambiguous phrases. Use imperative verbs.
 
-4) GROWTH ENGINE (GENTLE GUIDANCE):
-- Instead of strictly rewriting questions, if the user asks a very vague *technical* question, gently guide them to clarify. Only offer tips if it naturally fits the conversation. 
-
-5) CAREER SHIFT / OUT-OF-FIELD QUERIES (ANY FIELD):
-- Compare the user's field (${profile.field}) and profession (${profile.role === 'Student' ? profile.faculty : profile.jobTitle}) with the topic they are asking about.
-- If they are asking about ANY completely different field (e.g., a Civil Engineer asking about Programming, a Doctor asking about Marketing, an Accountant asking about Graphic Design):
-  a) CONVERSATION FIRST: Acknowledge the career shift enthusiastically. Chat with them a bit first to understand their motivation before dumping information.
-  b) BEGINNER MODE: Switch to absolute beginner mode for this new topic. Explain from absolute zero, step-by-step, with extreme simplicity and basic analogies. Do not assume prior knowledge in this new area.
-  c) PRE-ASSESSMENT OFFER: After the initial brief chat, explicitly offer to give them a "short quick quiz" or "small test" to gauge their current level in this new field so you know exactly where to start. You MUST wait for their agreement before giving the quiz or diving into a heavy technical roadmap.
-
-CURRENT MODE SUMMARY:
-- Accessibility: ${profile.accessibilityMode}
-- Cognitive Level: ${profile.level}
-- Language: ${profile.language || 'English'}
+========================
+TOOLS
+========================
+- You can generate images if requested.
 `;
 
   const activeThread = profile.chatThreads?.find(t => t.id === profile.activeThreadId);
   const currentMessages = activeThread?.messages || profile.chatHistory || [];
 
-  // ✅ Fix: احذف welcome message وأي messages فاضية
   const history = currentMessages
     .filter(m => m.id !== 'welcome')
     .filter(m => m.content?.trim())
@@ -172,10 +157,7 @@ CURRENT MODE SUMMARY:
       parts: [{ text: m.content }]
     }));
 
-  // ✅ Fix: تأكد إن history مش بيبدأ بـ 'model'
-  const cleanHistory = history[0]?.role === 'model'
-    ? history.slice(1)
-    : history;
+  const cleanHistory = history[0]?.role === 'model' ? history.slice(1) : history;
 
   try {
     const ai = getAI();
@@ -190,131 +172,65 @@ CURRENT MODE SUMMARY:
       });
     });
 
-    const response = await ai.models.generateContent({
+    const model = ai.getGenerativeModel({
       model: "gemini-1.5-flash",
+      systemInstruction,
+      tools: [{
+        functionDeclarations: [
+          {
+            name: "generateImage",
+            description: "Generate a custom high-quality image based on the user's request.",
+            parameters: {
+              type: SchemaType.OBJECT,
+              properties: {
+                prompt: {
+                  type: SchemaType.STRING,
+                  description: "The detailed descriptive prompt for the image."
+                }
+              },
+              required: ["prompt"]
+            }
+          }
+        ]
+      }]
+    });
+
+    const result = await model.generateContent({
       contents: [
         ...cleanHistory,
         { role: 'user', parts }
-      ],
-      config: {
-        systemInstruction,
-        tools: [{
-          functionDeclarations: [
-            {
-              name: "generateImage",
-              description: "Generate a custom high-quality image based on the user's request. Only use this if the user EXPLICITLY asks to generate, create, or draw an image/picture.",
-              parameters: {
-                type: Type.OBJECT,
-                properties: {
-                  prompt: {
-                    type: Type.STRING,
-                    description: "The detailed descriptive prompt for the image."
-                  }
-                },
-                required: ["prompt"]
-              }
-            },
-            {
-              name: "generateVideo",
-              description: "Generate a short video animation. Only use this if the user EXPLICITLY asks to generate or create a video/animation.",
-              parameters: {
-                type: Type.OBJECT,
-                properties: {
-                  prompt: {
-                    type: Type.STRING,
-                    description: "The detailed descriptive prompt for the video."
-                  }
-                },
-                required: ["prompt"]
-              }
-            }
-          ]
-        }]
-      }
+      ]
     });
 
+    const response = result.response;
     let generatedAttachments: { name: string, type: string, data: string }[] = [];
-    let finalText = response.text || "";
+    let finalText = response.text() || "";
 
-    if (response.functionCalls && response.functionCalls.length > 0) {
-      const call = response.functionCalls[0];
-      
-      if (call.name === 'generateImage') {
-        const prompt = call.args.prompt as string;
-        try {
-          const imageResponse = await ai.models.generateContent({
-            model: 'gemini-1.5-flash',
-            contents: { parts: [{ text: prompt }] },
-            config: {
-              imageConfig: { aspectRatio: "16:9" }
-            }
+    const call = response.functionCalls()?.[0];
+    
+    if (call && call.name === 'generateImage') {
+      const args = call.args as any;
+      const prompt = args.prompt as string;
+      try {
+        const imgModel = ai.getGenerativeModel({ model: 'gemini-1.5-flash' });
+        const imageResponse = await imgModel.generateContent({
+          contents: [{ role: 'user', parts: [{ text: prompt }] }],
+        });
+        
+        const candidate = imageResponse.response.candidates?.[0];
+        const part = candidate?.content?.parts?.find(p => p.inlineData);
+        
+        if (part?.inlineData) {
+          generatedAttachments.push({
+            name: `Generated_Image_${Date.now()}.png`,
+            type: part.inlineData.mimeType,
+            data: part.inlineData.data
           });
-          
-          for (const part of imageResponse.candidates?.[0]?.content?.parts || []) {
-            if (part.inlineData) {
-              generatedAttachments.push({
-                name: `Generated_Image_${Date.now()}.png`,
-                type: 'image/png',
-                data: part.inlineData.data
-              });
-            }
-          }
           finalText = `I have generated an image based on your prompt: "${prompt}".`;
-        } catch (e) {
-          console.error("Image generation failed", e);
-          finalText = "I apologize, but I encountered an error while trying to generate the image.";
         }
-      } else if (call.name === 'generateVideo') {
-        const prompt = call.args.prompt as string;
-        try {
-          let operation = await ai.models.generateVideos({
-            model: 'veo-3.1-lite-generate-preview',
-            prompt: prompt,
-            config: {
-              numberOfVideos: 1,
-              resolution: '1080p',
-              aspectRatio: '16:9'
-            }
-          });
-          
-          // Poll for completion
-          while (!operation.done) {
-            await new Promise(resolve => setTimeout(resolve, 8000));
-            operation = await ai.operations.getVideosOperation({operation});
-          }
-          
-          const downloadLink = operation.response?.generatedVideos?.[0]?.video?.uri;
-          if (downloadLink) {
-             // Access the key correctly for Vercel/Vite environment
-             // @ts-ignore
-             const apiKey = (import.meta.env?.VITE_GEMINI_API_KEY) || 
-                            // @ts-ignore
-                            (typeof process !== 'undefined' ? process.env.GEMINI_API_KEY : '');
-             const vidResponse = await fetch(downloadLink, {
-               method: 'GET',
-               headers: { 'x-goog-api-key': apiKey },
-             });
-             const blob = await vidResponse.blob();
-             const buffer = await blob.arrayBuffer();
-             const base64 = btoa(new Uint8Array(buffer).reduce((data, byte) => data + String.fromCharCode(byte), ''));
-
-             generatedAttachments.push({
-               name: `Generated_Video_${Date.now()}.mp4`,
-               type: 'video/mp4',
-               data: base64
-             });
-             finalText = `I have successfully generated your video based on: "${prompt}".`;
-          } else {
-             finalText = "Video generation completed but the video uri was not found.";
-          }
-        } catch (e: any) {
-          console.error("Video generation failed", e);
-          if (e.message && e.message.includes('403')) {
-            finalText = "I apologize, but video generation requires a paid Google Cloud API Key with billing enabled. The current built-in key does not support the 'Veo' model.";
-          } else {
-            finalText = "I apologize, but I encountered an error. Note that video generation can be highly intensive or occasionally fail due to system load. Please try again later.";
-          }
-        }
+      } catch (e) {
+        console.error("Image generation failed", e);
+        finalText = "I apologize, but I encountered an error while trying to generate the image.";
       }
     }
 
@@ -326,18 +242,23 @@ CURRENT MODE SUMMARY:
     console.error("Error generating adaptive response:", error);
     
     const errorMsg = error?.message || "";
-    let friendlyEntry = "I encountered an error while processing your request.";
+    let friendlyText = "I encountered an error while processing your request.";
 
     if (errorMsg.includes("429")) {
-      friendlyEntry = "يا مهندس، جوجل بتقول إننا استهلكنا عدد الرسايل المجانية المسموح بيها في الدقيقة. استنى بس 30 ثانية وجرب تاني وهتشتغل معاك زي الفل! ⏳";
+      friendlyText = "يا مهندس، جوجل بتقول إننا استهلكنا عدد الرسايل المجانية المسموح بيها في الدقيقة. استنى بس 30 ثانية وجرب تاني وهتشتغل معاك زي الفل! ⏳";
     } else if (errorMsg.includes("503") || errorMsg.includes("UNAVAILABLE")) {
-      friendlyEntry = "سيرفرات جوجل عليها ضغط كبير دلوقتي فمش قادرة ترد. جرب تبعت الرسالة كمان لحظة وهكون معاك. 🚀";
+      friendlyText = "سيرفرات جوجل عليها ضغط كبير دلوقتي فمش قادرة ترد. جرب تبعت الرسالة كمان لحظة وهكون معاك. 🚀";
     } else if (errorMsg.includes("403") || errorMsg.includes("API Key")) {
-      friendlyEntry = "فيه مشكلة في مفتاح الـ API بتاعك، اتأكد إنه محطوط صح في إعدادات Vercel. 🔑";
+      friendlyText = "فيه مشكلة في مفتاح الـ API بتاعك، اتأكد إنه محطوط صح في إعدادات Vercel. 🔑";
+    } else if (errorMsg.includes("404")) {
+      friendlyText = "جوجل بتقول إن الموديل ده مش موجود. غالباً محتاجين نتأكد من اسم الموديل في الكود. 🛠️";
     } else {
-      friendlyEntry = `حدث خطأ تقني بسيط: ${errorMsg.slice(0, 50)}... برجاء المحاولة مرة أخرى.`;
+      friendlyText = `حدث خطأ تقني: ${errorMsg.slice(0, 80)}. برجاء المحاولة مرة أخرى.`;
     }
 
-    return friendlyEntry;
+    return {
+      text: friendlyText,
+      attachments: []
+    };
   }
 }
