@@ -32,22 +32,62 @@ export default function App() {
   const [profileLoading, setProfileLoading] = useState(true);
   const [connectionError, setConnectionError] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+
+  // Theme management: Default to system, but respect manual override if present
   const [isDarkMode, setIsDarkMode] = useState(() => {
     const saved = localStorage.getItem('theme');
     if (saved) return saved === 'dark';
     return window.matchMedia('(prefers-color-scheme: dark)').matches;
   });
 
-  // Sync dark mode class
+  // Sync theme with machine/system changes
+  useEffect(() => {
+    const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
+    
+    // Function to apply theme based on system or manual selection
+    const applyTheme = (e?: MediaQueryListEvent | MediaQueryList) => {
+      const saved = localStorage.getItem('theme');
+      // If user has a manual preference, prioritize it
+      if (saved) {
+        const shouldBeDark = saved === 'dark';
+        setIsDarkMode(shouldBeDark);
+        if (shouldBeDark) document.documentElement.classList.add('dark');
+        else document.documentElement.classList.remove('dark');
+        return;
+      }
+
+      // Otherwise follow the system
+      const systemIsDark = e ? (e as MediaQueryList).matches : mediaQuery.matches;
+      setIsDarkMode(systemIsDark);
+      if (systemIsDark) document.documentElement.classList.add('dark');
+      else document.documentElement.classList.remove('dark');
+    };
+
+    // Initial check
+    applyTheme(mediaQuery);
+
+    // Listen for system preference changes
+    const handler = (e: MediaQueryListEvent) => applyTheme(e);
+    mediaQuery.addEventListener('change', handler);
+
+    return () => mediaQuery.removeEventListener('change', handler);
+  }, []);
+
+  // Sync manual state change (when user clicks toggle)
   useEffect(() => {
     if (isDarkMode) {
       document.documentElement.classList.add('dark');
-      localStorage.setItem('theme', 'dark');
     } else {
       document.documentElement.classList.remove('dark');
-      localStorage.setItem('theme', 'light');
     }
   }, [isDarkMode]);
+
+  // Handle manual theme toggle
+  const toggleTheme = () => {
+    const newMode = !isDarkMode;
+    setIsDarkMode(newMode);
+    localStorage.setItem('theme', newMode ? 'dark' : 'light');
+  };
 
   // Sync navigation with browser history
   useEffect(() => {
@@ -328,7 +368,7 @@ export default function App() {
                        Switch between light and dark visual themes to reduce eye strain in low-light environments.
                      </p>
                      <button
-                       onClick={() => setIsDarkMode(!isDarkMode)}
+                       onClick={toggleTheme}
                        className={`w-full py-3 rounded-2xl text-xs font-black uppercase tracking-widest transition-all ${
                          isDarkMode 
                            ? 'bg-indigo-500/20 text-indigo-300 hover:bg-indigo-500/30' 
@@ -402,6 +442,8 @@ export default function App() {
             }} 
             currentView={currentView}
             setCurrentView={navigateTo}
+            isDarkMode={isDarkMode}
+            toggleTheme={toggleTheme}
           />
         </div>
 

@@ -67,6 +67,182 @@ Make the experience feel like sitting with a brilliant, patient mentor who is sl
   }
 }
 
+export async function* generateAdaptiveResponseStream(
+  message: string,
+  profile: UserProfile,
+  attachments: { name: string, type: string, data: string }[] = []
+) {
+  try {
+    const ai = getAI();
+    const model = "gemini-flash-latest";
+
+    const otherThreadsSummary = profile.chatThreads
+      ?.filter(t => t.id !== profile.activeThreadId)
+      .map(t => `Thread "${t.title}": ${t.messages.slice(-2).map(m => m.content).join(' | ')}`)
+      .join('\n') || 'None';
+
+    const systemInstruction = `
+You are AI-LA, an advanced, highly conversational AI companion, mentor, and dialogue partner. Your core capability is natural, flowing, and deeply interactive discussion similar to advanced LLMs like ChatGPT or Claude.
+
+========================
+CONVERSATIONAL CAPABILITIES (NLP/LLM DYNAMICS)
+========================
+1. RELATIONAL & IMPROVISATIONAL: You are not a rigid Q&A bot. You can brainstorm, debate, improvise, and have casual or deep philosophical discussions. Use a very warm, human-like nuance.
+2. ACTIVE DIALOGUE: Ask thought-provoking follow-up questions when natural to keep the conversation going. If the user presents a thesis, discuss its pros and cons engagingly. Do not just answer passively; build logic with the user.
+3. FLUID CONTEXT: Maintain the flow of the conversation. Reference things said earlier in the chat naturally.
+4. HUMANNESS: Be engaging, empathetic, and intellectually curious. Avoid overly robotic statements, repetitive structures, or rigid formatting unless specifically requested or required for accessibility.
+5. EXTREME INTELLIGENCE: You are powered by Gemini 3 Flash, highly optimized for speed and brilliance. Show depth, logic tracking, and high-order reasoning when engaged in intellectual talks. Think step-by-step for complex requests.
+
+========================
+USER PROFILE CONTEXT
+========================
+- Cognitive Level: ${profile.level}
+- User Type: ${profile.role}
+- Field: ${profile.field}
+- Preferred Language: ${profile.language || 'English'}
+- Disability Mode: ${profile.accessibilityMode}
+- Institutional Context: ${profile.role === 'Student' ? `${profile.faculty} @ ${profile.university}` : `${profile.jobTitle} @ ${profile.work}`}
+- Estimated IQ/Logic Score: ${profile.iqScore}
+
+========================
+CROSS-THREAD COGNITIVE MEMORY
+========================
+The user has reached out previously in other threads. Use this context to personalize your relationship and recall past topics:
+${otherThreadsSummary}
+
+========================
+MULTIMODAL CAPABILITIES
+========================
+- If the user provides an image: ALWAYS describe what you see in the context of their Field (${profile.field}) seamlessly before answering their question.
+- Perform deep visual/textual analysis on all attachments. Don't just acknowledge them—derive insights.
+
+========================
+BEHAVIORAL PROTOCOLS & COGNITIVE CALIBRATION 
+========================
+0) DYNAMIC RESPONSES:
+- Prioritize natural, fast, and helpful answers. You can be conversational without wasting time.
+
+1) LANGUAGE & TONE (DYNAMIC MIRRORING):
+- You MUST automatically mirror the language the user is speaking in the current prompt. If they speak Arabic, reply in Arabic. If they speak English, reply in English, and so forth.
+- For Arabic, if the user's level is BASIC, use "Egyptian Slang" (بالبلدي) to make the conversation feel like they are talking to a smart friend.
+
+2) COGNITIVE CALIBRATION:
+- BASIC (Level 1):
+  * Conversational, friendly, uses practical everyday examples.
+- INTERMEDIATE (Level 2):
+  * Use practical scientific and technical examples. 
+- ADVANCED (Level 3):
+  * DEEP DIVE: Engage in high-level intellectual debates, peer-level discussions, and advanced analogies.
+
+3) ADAPTIVE FORMATTING (ACCESSIBILITY):
+- Visual: Bulleted/Numbered lists ONLY. No paragraph block longer than 3 lines. Each step MUST start with an action verb.
+- Speech: No markdown symbols (no #, **, etc.). Short, concise sentences.
+
+========================
+TOOLS
+========================
+- You can generate images using the generateImage function. Use it for creative requests.
+`;
+
+    const activeThread = profile.chatThreads?.find(t => t.id === profile.activeThreadId);
+    const currentMessages = activeThread?.messages || profile.chatHistory || [];
+
+    const history = currentMessages
+      .filter(m => m.id !== 'welcome')
+      .filter(m => m.content?.trim())
+      .map(m => ({
+        role: m.role === 'user' ? 'user' : 'model' as 'user' | 'model',
+        parts: [{ text: m.content }]
+      }));
+
+    const cleanHistory = history[0]?.role === 'model' ? history.slice(1) : history;
+
+    const parts: any[] = [{ text: message }];
+    attachments.forEach(file => {
+      parts.push({
+        inlineData: {
+          mimeType: file.type,
+          data: file.data
+        }
+      });
+    });
+
+    const stream = await ai.models.generateContentStream({
+      model,
+      contents: [
+        ...cleanHistory,
+        { role: 'user', parts }
+      ],
+      config: {
+        systemInstruction,
+        tools: [{
+          functionDeclarations: [{
+            name: "generateImage",
+            description: "Generate a custom high-quality image based on the user's prompt.",
+            parameters: {
+              type: Type.OBJECT,
+              properties: {
+                prompt: {
+                  type: Type.STRING,
+                  description: "Detailed description of the image to generate."
+                }
+              },
+              required: ["prompt"]
+            }
+          }]
+        }]
+      }
+    });
+
+    let fullText = "";
+    for await (const chunk of stream) {
+      if (chunk.text) {
+        fullText += chunk.text;
+        yield { text: fullText, done: false };
+      }
+      
+      const call = chunk.functionCalls?.[0];
+      if (call && call.name === 'generateImage') {
+         const args = call.args as any;
+         const prompt = args.prompt;
+         yield { text: `جاري توليد الصورة: "${prompt}"...`, done: false, isGeneratingImage: true };
+         
+         const imageResponse = await ai.models.generateContent({
+           model: 'gemini-2.5-flash-image',
+           contents: { parts: [{ text: prompt }] },
+           config: {
+             imageConfig: { aspectRatio: "1:1" }
+           }
+         });
+
+         const generatedAttachments = [];
+         for (const part of imageResponse.candidates?.[0]?.content?.parts || []) {
+           if (part.inlineData) {
+             generatedAttachments.push({
+               name: `Generated_Image_${Date.now()}.png`,
+               type: part.inlineData.mimeType || 'image/png',
+               data: part.inlineData.data
+             });
+           }
+         }
+         yield { text: `I have generated an image based on: "${prompt}".`, done: true, attachments: generatedAttachments };
+         return;
+      }
+    }
+    
+    yield { text: fullText, done: true };
+
+  } catch (error: any) {
+    console.error("Streaming error:", error);
+    const errorMsg = error?.message || "";
+    let friendlyText = "I encountered an error while processing your request.";
+    if (errorMsg.includes("429")) {
+      friendlyText = "يا مهندس، جوجل بتقول إننا استهلكنا عدد الرسايل المجانية المسموح بيها في الدقيقة. استنى بس 30 ثانية وجرب تاني وهتشتغل معاك زي الفل! ⏳";
+    }
+    yield { text: friendlyText, done: true, error: true };
+  }
+}
+
 export async function generateAdaptiveResponse(
   message: string,
   profile: UserProfile,

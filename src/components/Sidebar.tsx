@@ -8,27 +8,11 @@ interface SidebarProps {
   setProfile: (profile: UserProfile) => void;
   currentView: 'chat' | 'hub' | 'profile' | 'settings' | 'logic';
   setCurrentView: (view: 'chat' | 'hub' | 'profile' | 'settings' | 'logic') => void;
+  isDarkMode: boolean;
+  toggleTheme: () => void;
 }
 
-export default function Sidebar({ profile, setProfile, currentView, setCurrentView }: SidebarProps) {
-  const [isDark, setIsDark] = useState(false);
-
-  useEffect(() => {
-    setIsDark(document.documentElement.classList.contains('dark'));
-  }, []);
-
-  const toggleTheme = () => {
-    if (isDark) {
-      document.documentElement.classList.remove('dark');
-      localStorage.setItem('theme', 'light');
-      setIsDark(false);
-    } else {
-      document.documentElement.classList.add('dark');
-      localStorage.setItem('theme', 'dark');
-      setIsDark(true);
-    }
-  };
-
+export default function Sidebar({ profile, setProfile, currentView, setCurrentView, isDarkMode, toggleTheme }: SidebarProps) {
   const handleChange = (key: keyof UserProfile, value: string) => {
     setProfile({ ...profile, [key]: value });
   };
@@ -302,11 +286,11 @@ export default function Sidebar({ profile, setProfile, currentView, setCurrentVi
           className="w-full flex items-center justify-between px-4 py-3 rounded-xl text-xs font-black text-slate-700 bg-slate-50 border border-slate-100 hover:bg-slate-100 transition-all uppercase tracking-widest dark:bg-slate-900 dark:text-slate-300 dark:border-slate-800 dark:hover:bg-slate-800"
         >
           <span className="flex items-center gap-2">
-            {isDark ? <Sun className="w-4 h-4 text-amber-500" /> : <Moon className="w-4 h-4 text-slate-500" />} 
+            {isDarkMode ? <Sun className="w-4 h-4 text-amber-500" /> : <Moon className="w-4 h-4 text-slate-500" />} 
             Theme
           </span>
           <span className="text-[9px] px-2 py-0.5 rounded-full bg-slate-200 text-slate-600 dark:bg-slate-800 dark:text-slate-400">
-            {isDark ? 'DARK' : 'LIGHT'}
+            {isDarkMode ? 'DARK' : 'LIGHT'}
           </span>
         </button>
 

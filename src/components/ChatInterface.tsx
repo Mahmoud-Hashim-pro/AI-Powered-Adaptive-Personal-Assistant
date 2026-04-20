@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect } from "react";
 import { Message, UserProfile } from "../types";
-import { generateAdaptiveResponse } from "../services/gemini";
-import { Send, Bot, User, Loader2, Sparkles, BrainCircuit, Paperclip, Image as ImageIcon, FileText, X, Accessibility, Menu, Download } from "lucide-react";
+import { generateAdaptiveResponseStream } from "../services/gemini";
+import { Send, Bot, User, Loader2, Sparkles, BrainCircuit, Paperclip, ImageIcon, FileText, X, Accessibility, Menu, Download } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 
 interface ChatInterfaceProps {
@@ -16,6 +16,7 @@ export default function ChatInterface({ profile, onQuestionEvaluated, onMenuClic
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState("");
   const [isLoading, setIsLoading] = useState(false);
+  const [streamingText, setStreamingText] = useState("");
   const [selectedFiles, setSelectedFiles] = useState<{ name: string, type: string, data: string }[]>([]);
   const scrollRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -61,7 +62,7 @@ export default function ChatInterface({ profile, onQuestionEvaluated, onMenuClic
     if (scrollRef.current) {
       scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
     }
-  }, [messages, isLoading, selectedFiles]);
+  }, [messages, isLoading, streamingText, selectedFiles]);
 
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
@@ -138,42 +139,48 @@ export default function ChatInterface({ profile, onQuestionEvaluated, onMenuClic
       syncMessages(newHistory);
     }
     
+    const submittedMessage = input;
     setInput("");
     setIsLoading(true);
+    setStreamingText("");
     const attachmentsToSubmit = [...selectedFiles];
     setSelectedFiles([]);
 
     try {
-      const result = await generateAdaptiveResponse(input, profile, attachmentsToSubmit);
+      const stream = generateAdaptiveResponseStream(submittedMessage, profile, attachmentsToSubmit);
       
-      let responseText = "AI communication error. Please try again.";
-      let newAttachments: { name: string, type: string, data: string }[] = [];
-
-      if (typeof result === 'string') {
-        responseText = result;
-      } else if (result) {
-        responseText = result.text || "Analyzed successfully.";
-        newAttachments = result.attachments || [];
+      let lastText = "";
+      let finalAttachments: any[] = [];
+      
+      for await (const chunk of stream) {
+        if (chunk.text) {
+          lastText = chunk.text;
+          setStreamingText(lastText);
+        }
+        if (chunk.attachments) {
+          finalAttachments = chunk.attachments;
+        }
       }
 
       const assistantMessage: Message = {
         id: (Date.now() + 1).toString(),
         role: 'assistant',
-        content: responseText,
+        content: lastText,
         timestamp: new Date().toISOString(),
-        attachments: newAttachments
+        attachments: finalAttachments
       };
       
       const updatedHistory = [...newHistory, assistantMessage];
       setMessages(updatedHistory);
+      setStreamingText("");
       onQuestionEvaluated(qualityScore, updatedHistory);
     } catch (error) {
       console.error(error);
-      // rollback history visually
       setMessages(messages);
       if (syncMessages) syncMessages(messages);
     } finally {
       setIsLoading(false);
+      setStreamingText("");
     }
   };
 
@@ -415,10 +422,32 @@ export default function ChatInterface({ profile, onQuestionEvaluated, onMenuClic
             <motion.div
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
-              className="flex items-center gap-3 p-6 bg-bg-main rounded-xl border border-border italic text-text-muted"
+              className="space-y-4"
             >
-              <Loader2 className="w-4 h-4 animate-spin text-primary" />
-              <span>Analyzing and typing response...</span>
+              <div className="flex items-center gap-3">
+                <span className={`text-[11px] font-bold uppercase px-2 py-0.5 rounded ${
+                  profile.level === 'Advanced' ? 'bg-purple-100 text-purple-800' :
+                  profile.level === 'Intermediate' ? 'bg-blue-100 text-blue-800' :
+                  'bg-orange-100 text-orange-800'
+                }`}>
+                  Level: {profile.level} ({profile.role})
+                </span>
+              </div>
+              
+              {streamingText ? (
+                <div className="text-text-main leading-relaxed adaptive-response text-base space-y-4">
+                  {streamingText.split('\n').map((line, i) => {
+                    if (line.startsWith('## ')) return <h2 key={i} className="text-xl font-bold text-primary border-b-2 border-primary/5 pb-1 mb-2 pt-4">{line.replace('## ', '')}</h2>;
+                    if (line.startsWith('* ')) return <li key={i} className="ml-5 list-square marker:text-primary mb-1">{line.replace('* ', '')}</li>;
+                    return <p key={i} className="mb-4">{line}</p>;
+                  })}
+                </div>
+              ) : (
+                <div className="flex items-center gap-3 p-6 bg-bg-main rounded-xl border border-border italic text-text-muted">
+                  <Loader2 className="w-4 h-4 animate-spin text-primary" />
+                  <span>Analyzing and typing response...</span>
+                </div>
+              )}
             </motion.div>
           )}
         </div>
