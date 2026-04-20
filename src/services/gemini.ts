@@ -5,13 +5,10 @@ let aiInstance: GoogleGenAI | null = null;
 
 function getAI() {
   if (!aiInstance) {
-    // @ts-ignore
-    const apiKey = (typeof process !== 'undefined' ? (process.env.GEMINI_API_KEY || process.env.VITE_GEMINI_API_KEY) : undefined) || 
-                   // @ts-ignore
-                   (import.meta.env?.VITE_GEMINI_API_KEY);
+    const apiKey = process.env.GEMINI_API_KEY || process.env.VITE_GEMINI_API_KEY;
 
-    if (!apiKey || apiKey === "undefined" || apiKey === "" || apiKey === "null") {
-      throw new Error(`API Key Missing. Please ensure VITE_GEMINI_API_KEY is set in your environment variables.`);
+    if (!apiKey) {
+      throw new Error(`API Key Missing. Please ensure GEMINI_API_KEY is set in your environment variables.`);
     }
     aiInstance = new GoogleGenAI({ apiKey });
   }
@@ -27,8 +24,8 @@ export async function generateLogicResponse(
   try {
     const ai = getAI();
     
-    // Using gemini-3-flash-preview as recommended by skill for basic text/logic tasks
-    const model = "gemini-3-flash-preview";
+    // Using gemini-flash-latest for stability across regions
+    const model = "gemini-flash-latest";
     
     const systemInstruction = `
 You are the AI-LA Advanced Logic Tutor. The user has explicitly opened a specialized sandbox to train their logic, analytical skills, and intellectual capabilities, specifically focusing on "${moduleName}".
@@ -77,7 +74,7 @@ export async function generateAdaptiveResponse(
 ) {
   try {
     const ai = getAI();
-    const model = "gemini-3-flash-preview";
+    const model = "gemini-flash-latest";
 
     const otherThreadsSummary = profile.chatThreads
       ?.filter(t => t.id !== profile.activeThreadId)
@@ -103,7 +100,7 @@ USER PROFILE CONTEXT
 - User Type: ${profile.role}
 - Field: ${profile.field}
 - Preferred Language: ${profile.language || 'English'}
-- Accessibility Mode: ${profile.accessibilityMode}
+- Disability Mode: ${profile.accessibilityMode}
 - Institutional Context: ${profile.role === 'Student' ? `${profile.faculty} @ ${profile.university}` : `${profile.jobTitle} @ ${profile.work}`}
 - Estimated IQ/Logic Score: ${profile.iqScore}
 
@@ -206,14 +203,13 @@ TOOLS
       const prompt = args.prompt;
       
       try {
-        // According to skill, image generation uses gemini-3.1-flash-image-preview
+        // According to skill, image generation uses gemini-2.5-flash-image by default
         const imageResponse = await ai.models.generateContent({
-          model: 'gemini-3.1-flash-image-preview',
+          model: 'gemini-2.5-flash-image',
           contents: { parts: [{ text: prompt }] },
           config: {
             imageConfig: {
               aspectRatio: "1:1",
-              imageSize: "1K"
             }
           }
         });

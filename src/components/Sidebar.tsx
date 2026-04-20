@@ -167,7 +167,7 @@ export default function Sidebar({ profile, setProfile, currentView, setCurrentVi
          
          <div className="px-5 py-4 rounded-2xl bg-slate-50 border border-slate-100 relative group overflow-hidden">
            <div className="relative z-10">
-             <p className="text-[10px] font-black text-slate-900 uppercase tracking-widest mb-1 group-hover:text-amber-600 transition-colors">Accessibility Mode</p>
+             <p className="text-[10px] font-black text-slate-900 uppercase tracking-widest mb-1 group-hover:text-amber-600 transition-colors">Disability Mode</p>
              <p className="text-[9px] text-slate-400 font-bold italic">Coming Soon</p>
            </div>
            <div className="absolute right-[-10px] bottom-[-10px] opacity-5">
@@ -277,7 +277,7 @@ export default function Sidebar({ profile, setProfile, currentView, setCurrentVi
       </div>
 
       <div className="flex flex-col gap-4">
-        <span className="text-[11px] font-bold text-text-muted uppercase tracking-[0.05em]">Accessibility</span>
+        <span className="text-[11px] font-bold text-text-muted uppercase tracking-[0.05em]">Disability</span>
         
         <div className="grid grid-cols-1 gap-1.5">
           {(['None', 'Speech', 'Visual', 'Sign-support'] as AccessibilityMode[]).map((m) => (
