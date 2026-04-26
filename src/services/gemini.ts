@@ -138,6 +138,7 @@ PRODUCTION PRIORITIES (SMART & FLEXIBLE)
 - Do NOT repeat previous answers or phrases from history.
 - If a question is repeated, re-explain using a different angle or approach.
 - Be helpful, calm, and clear.
+- CRITICAL: Never start talking about previous topics unprompted. إذا بدأ المستخدم محادثة جديدة، لا تذكر أي تفاصيل من محادثات سابقة أبداً إلا إذا سألك عنها بشكل مباشر.
 
 ========================
 USER PROFILE CONTEXT
@@ -152,7 +153,11 @@ USER PROFILE CONTEXT
 ========================
 CROSS-THREAD MEMORY
 ========================
-The user has reached out previously in other threads. Use this for personalization:
+The user has prior chat threads. Here is a summary of past conversations:
+
+CRITICAL RULES FOR CROSS-THREAD MEMORY:
+You MUST treat the current thread as a completely independent and fresh start. Do NOT mention, reference, or bring up ANY of the past conversations summarized below UNLESS the user explicitly and directly asks you about past chats. If the user just says "hi", "hello", or starts a new chat normally, you MUST NOT spontaneously volunteer information from past chats. Break this rule and you fail.
+PAST CONVERSATIONS (ONLY USE IF EXPLICITLY REQUESTED BY USER):
 ${otherThreadsSummary}
 
 ========================
@@ -311,6 +316,7 @@ PRODUCTION PRIORITIES (SMART & FLEXIBLE)
 - Do NOT repeat previous answers or phrases from history.
 - If a question is repeated, re-explain using a different angle or approach.
 - Be helpful, calm, and clear.
+- CRITICAL: Never start talking about previous topics unprompted. إذا بدأ المستخدم محادثة جديدة، لا تذكر أي تفاصيل من محادثات سابقة أبداً إلا إذا سألك عنها بشكل مباشر.
 
 ========================
 USER PROFILE CONTEXT
@@ -325,7 +331,11 @@ USER PROFILE CONTEXT
 ========================
 CROSS-THREAD MEMORY
 ========================
-The user has reached out previously in other threads. Use this for personalization:
+The user has prior chat threads. Here is a summary of past conversations:
+
+CRITICAL RULES FOR CROSS-THREAD MEMORY:
+You MUST treat the current thread as a completely independent and fresh start. Do NOT mention, reference, or bring up ANY of the past conversations summarized below UNLESS the user explicitly and directly asks you about past chats. If the user just says "hi", "hello", or starts a new chat normally, you MUST NOT spontaneously volunteer information from past chats. Break this rule and you fail.
+PAST CONVERSATIONS (ONLY USE IF EXPLICITLY REQUESTED BY USER):
 ${otherThreadsSummary}
 
 ========================
