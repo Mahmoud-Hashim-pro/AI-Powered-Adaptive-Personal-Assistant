@@ -11,8 +11,13 @@ import Onboarding from "./components/Onboarding";
 import IntelligenceHub from "./components/IntelligenceHub";
 import ProfilePage from "./components/ProfilePage";
 import LogicSandbox from "./components/LogicSandbox";
+import SignVideoStudio from "./components/SignVideoStudio";
 import Login from "./components/Login";
+import AccessibilityOverlay from "./components/AccessibilityOverlay";
+import LiveCaptions from "./components/LiveCaptions";
+import DisabilityModeView from "./components/DisabilityModeView";
 import ErrorBoundary from "./components/ErrorBoundary";
+import { motion, AnimatePresence } from "motion/react";
 import { Message, UserProfile } from "./types";
 import { auth, db, handleFirestoreError, OperationType } from "./lib/firebase";
 import { useAuthState } from "react-firebase-hooks/auth";
@@ -22,16 +27,19 @@ import { Loader2, Settings, Layers, Menu, Moon, Sun } from "lucide-react";
 export default function App() {
   const [user, loading, authError] = useAuthState(auth);
   
-  // Initialize view from hash if present, otherwise default to 'chat'
-  const [currentView, setCurrentView] = useState<'chat' | 'hub' | 'profile' | 'settings' | 'logic'>(() => {
+  const [currentView, setCurrentView] = useState<'chat' | 'hub' | 'profile' | 'settings' | 'logic' | 'video' | 'disability'>(() => {
     const hash = window.location.hash.replace('#', '');
-    return ['chat', 'hub', 'logic', 'profile', 'settings'].includes(hash) ? hash as any : 'chat';
+    return ['chat', 'hub', 'logic', 'profile', 'settings', 'video', 'disability'].includes(hash) ? hash as any : 'chat';
   });
   
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [profileLoading, setProfileLoading] = useState(true);
   const [connectionError, setConnectionError] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const [externalMessage, setExternalMessage] = useState("");
+  const [currentAIResponse, setCurrentAIResponse] = useState("");
+  const [isSTTActive, setIsSTTActive] = useState(false);
+  const [isLiveCaptionsOpen, setIsLiveCaptionsOpen] = useState(false);
 
   // Theme management: Default to system, but respect manual override if present
   const [isDarkMode, setIsDarkMode] = useState(() => {
@@ -98,7 +106,7 @@ export default function App() {
 
     const handlePopState = () => {
       const hash = window.location.hash.replace('#', '');
-      if (['chat', 'hub', 'logic', 'profile', 'settings'].includes(hash)) {
+      if (['chat', 'hub', 'logic', 'profile', 'settings', 'video', 'disability'].includes(hash)) {
         setCurrentView(hash as any);
       } else {
         setCurrentView('chat');
@@ -111,7 +119,7 @@ export default function App() {
   }, []);
 
   // Custom navigation function that updates URL and state
-  const navigateTo = (view: 'chat' | 'hub' | 'logic' | 'profile' | 'settings') => {
+  const navigateTo = (view: 'chat' | 'hub' | 'logic' | 'profile' | 'settings' | 'video' | 'disability') => {
     if (view !== currentView) {
       window.history.pushState(null, '', `#${view}`);
       setCurrentView(view);
@@ -174,7 +182,6 @@ export default function App() {
       uid: user.uid,
       email: user.email || "",
       name: user.displayName || user.email?.split('@')[0] || "User",
-      language: 'English',
       points: 100,
       questionHistory: [],
       chatHistory: [],
@@ -318,7 +325,15 @@ export default function App() {
       case 'chat':
         return (
           <>
-            <ChatInterface profile={profile} onQuestionEvaluated={updateQuestionHistory} syncMessages={syncActiveThread} onMenuClick={() => setIsMobileMenuOpen(true)} />
+            <ChatInterface 
+              profile={profile} 
+              onQuestionEvaluated={updateQuestionHistory} 
+              syncMessages={syncActiveThread} 
+              onMenuClick={() => setIsMobileMenuOpen(true)} 
+              externalMessage={externalMessage}
+              onStreamingUpdate={(text) => setCurrentAIResponse(text)}
+              onSTTStateChange={setIsSTTActive}
+            />
             <div className="hidden xl:block">
               <RightPanel profile={profile} />
             </div>
@@ -326,6 +341,18 @@ export default function App() {
         );
       case 'hub':
         return <IntelligenceHub profile={profile} onMenuClick={() => setIsMobileMenuOpen(true)} />;
+      case 'video':
+        return <SignVideoStudio profile={profile} onMenuClick={() => setIsMobileMenuOpen(true)} />;
+      case 'disability':
+        return <DisabilityModeView 
+          profile={profile} 
+          onMenuClick={() => setIsMobileMenuOpen(true)} 
+          onNavigate={navigateTo} 
+          onQuestionEvaluated={updateQuestionHistory} 
+          syncMessages={syncActiveThread}
+          externalMessage={externalMessage}
+          onStreamingUpdate={(text) => setCurrentAIResponse(text)}
+        />;
       case 'profile':
         return <ProfilePage profile={profile} onMenuClick={() => setIsMobileMenuOpen(true)} />;
       case 'logic':
@@ -416,7 +443,7 @@ export default function App() {
 
   return (
     <ErrorBoundary>
-      <div className="flex w-full h-screen bg-slate-950 font-sans overflow-hidden selection:bg-blue-500/30">
+      <div className="flex w-full h-[100dvh] bg-slate-950 font-sans overflow-hidden selection:bg-blue-500/30">
         
         {/* Mobile menu backdrop */}
         {isMobileMenuOpen && (
@@ -427,29 +454,61 @@ export default function App() {
         )}
 
         {/* Sidebar Wrapper */}
-        <div className={`fixed inset-y-0 left-0 z-50 transform ${isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full'} lg:relative lg:translate-x-0 transition-transform duration-300 ease-[cubic-bezier(0.4,0,0.2,1)] shadow-2xl lg:shadow-none`}>
-          <Sidebar 
-            profile={profile} 
-            setProfile={async (p) => {
-              if (!user) return;
-              const path = `users/${user.uid}`;
-              try {
-                const cleanProfile = JSON.parse(JSON.stringify(p));
-                await setDoc(doc(db, path), cleanProfile);
-              } catch (err) {
-                handleFirestoreError(err, OperationType.UPDATE, path);
-              }
-            }} 
-            currentView={currentView}
-            setCurrentView={navigateTo}
-            isDarkMode={isDarkMode}
-            toggleTheme={toggleTheme}
-          />
-        </div>
+        {currentView !== 'disability' && (
+          <div className={`fixed inset-y-0 left-0 z-50 transform ${isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full'} lg:relative lg:translate-x-0 transition-transform duration-300 ease-[cubic-bezier(0.4,0,0.2,1)] shadow-2xl lg:shadow-none`}>
+            <Sidebar 
+              profile={profile} 
+              setProfile={async (p) => {
+                if (!user) return;
+                const path = `users/${user.uid}`;
+                try {
+                  const cleanProfile = JSON.parse(JSON.stringify(p));
+                  await setDoc(doc(db, path), cleanProfile);
+                } catch (err) {
+                  handleFirestoreError(err, OperationType.UPDATE, path);
+                }
+              }} 
+              currentView={currentView}
+              setCurrentView={navigateTo}
+              isDarkMode={isDarkMode}
+              toggleTheme={toggleTheme}
+              openLiveCaptions={() => setIsLiveCaptionsOpen(true)}
+            />
+          </div>
+        )}
 
         <main className="flex-1 relative overflow-hidden flex flex-col md:flex-row">
           {renderView()}
         </main>
+
+        {profile && (
+          <AccessibilityOverlay 
+            mode={profile.accessibilityMode === 'None' ? 'Vocal-Deaf' : profile.accessibilityMode} 
+            profile={profile}
+            aiResponse={currentAIResponse}
+            isListening={isSTTActive}
+            onTranscription={(text) => {
+              setExternalMessage(text);
+              // Reset so it doesn't keep triggering if ChatInterface clears it
+              setTimeout(() => setExternalMessage(""), 500);
+            }} 
+            onToggleListening={() => {
+              // We need a way to trigger ChatInterface's toggle
+              // I'll add a global event or common state
+              const btn = document.querySelector('button[title*="Speak"]') as HTMLButtonElement;
+              if (btn) btn.click();
+            }}
+          />
+        )}
+
+        <AnimatePresence>
+          {isLiveCaptionsOpen && (
+            <LiveCaptions 
+              language={profile?.language === 'Arabic' ? 'ar-SA' : 'en-US'}
+              onClose={() => setIsLiveCaptionsOpen(false)} 
+            />
+          )}
+        </AnimatePresence>
       </div>
     </ErrorBoundary>
   );
