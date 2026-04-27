@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { AccessibilityMode, UserProfile } from '../types';
 import { geminiService } from '../services/geminiService';
-import { Mic, MicOff, Video, VideoOff, Brain, Sparkles, MessageSquare, Eye, Camera, RefreshCw, Hand, Heart, HelpCircle, ThumbsUp, ThumbsDown, Smile, Frown, Clock, Ear, MessageCircle, Home, Briefcase, Octagon, User, Activity } from 'lucide-react';
+import { Mic, MicOff, Video, VideoOff, Brain, Sparkles, MessageSquare, Eye, Camera, RefreshCw, Hand, Heart, HelpCircle, ThumbsUp, ThumbsDown, Smile, Frown, Clock, Ear, MessageCircle, Home, Briefcase, Octagon, User, Activity, VolumeX, Volume2 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { Hands, Results, HAND_CONNECTIONS } from '@mediapipe/hands';
 import { Camera as MediaPipeCamera } from '@mediapipe/camera_utils';
@@ -28,6 +28,8 @@ export default function AccessibilityOverlay({ mode, profile, aiResponse = "", o
   const cameraRef = useRef<MediaPipeCamera | null>(null);
 
   const [currentWord, setCurrentWord] = useState("");
+  const [isSpeaking, setIsSpeaking] = useState(false);
+  const [autoSpeak, setAutoSpeak] = useState(false);
   const [avatarImage, setAvatarImage] = useState("https://images.unsplash.com/photo-1560250097-0b93528c311a?auto=format&fit=crop&q=80&w=400&h=600");
   const [signHistory, setSignHistory] = useState<string[]>([]);
 
@@ -60,9 +62,11 @@ export default function AccessibilityOverlay({ mode, profile, aiResponse = "", o
       setAvatarImage("https://images.unsplash.com/photo-1539571696357-5a69c17a67c6?auto=format&fit=crop&q=80&w=400&h=600"); // Speaking/Active expression
       
       // text-to-speech for AI response
-      if (mode === 'Speech' || mode === 'Vocal-Deaf' || mode === 'Visual') {
+      if (autoSpeak && (mode === 'Speech' || mode === 'Vocal-Deaf' || mode === 'Visual')) {
         if ('speechSynthesis' in window) {
-           const utterance = new SpeechSynthesisUtterance(aiResponse);
+           const cleanText = aiResponse.replace(/[*+#_`~\[\]()]/g, '');
+           const utterance = new SpeechSynthesisUtterance(cleanText);
+           const hasArabic = /[\u0600-\u06FF]/.test(cleanText);
            const langMap: Record<string, string> = {
             'English': 'en-US',
             'Arabic': 'ar-SA',
@@ -70,7 +74,12 @@ export default function AccessibilityOverlay({ mode, profile, aiResponse = "", o
             'Spanish': 'es-ES',
             'German': 'de-DE'
            };
-           utterance.lang = langMap[profile.language || 'English'] || 'en-US';
+           utterance.lang = hasArabic ? 'ar-SA' : (langMap[profile.language || 'English'] || 'en-US');
+           
+           utterance.onstart = () => setIsSpeaking(true);
+           utterance.onend = () => setIsSpeaking(false);
+           utterance.onerror = () => setIsSpeaking(false);
+
            window.speechSynthesis.cancel(); // stop any ongoing synthesis
            window.speechSynthesis.speak(utterance);
         }
@@ -371,7 +380,40 @@ export default function AccessibilityOverlay({ mode, profile, aiResponse = "", o
             transition={{ type: "spring", stiffness: 100, damping: 20 }}
             className="flex flex-col items-center gap-2 pointer-events-auto shrink-0 cursor-grab active:cursor-grabbing"
           >
-             <div className="flex flex-col items-center gap-4">
+              <div className="flex flex-col items-center gap-4">
+                 {(mode === 'Speech' || mode === 'Vocal-Deaf') && (
+                   <button
+                    onClick={() => {
+                      setAutoSpeak(!autoSpeak);
+                      if (autoSpeak && 'speechSynthesis' in window) {
+                        window.speechSynthesis.cancel();
+                        setIsSpeaking(false);
+                      }
+                    }}
+                    className={`w-14 h-14 rounded-2xl flex items-center justify-center shadow-xl transition-all active:scale-95 border-2 ${
+                      autoSpeak
+                        ? 'bg-indigo-50 border-indigo-200 text-indigo-600'
+                        : 'bg-white border-slate-200 text-slate-400 hover:text-slate-600'
+                    }`}
+                    title={autoSpeak ? "Auto-Speak AI Response (ON)" : "Auto-Speak AI Response (OFF)"}
+                  >
+                    {autoSpeak ? <Volume2 className="w-6 h-6" /> : <VolumeX className="w-6 h-6" />}
+                  </button>
+                )}
+                {isSpeaking && (
+                  <button
+                    onClick={() => {
+                      if ('speechSynthesis' in window) {
+                        window.speechSynthesis.cancel();
+                      }
+                      setIsSpeaking(false);
+                    }}
+                    className="w-14 h-14 rounded-2xl flex items-center justify-center shadow-xl transition-all active:scale-95 border-2 bg-rose-50 border-rose-200 text-rose-600 hover:bg-rose-100"
+                    title="Stop AI Voice"
+                  >
+                    <VolumeX className="w-6 h-6" />
+                  </button>
+                )}
                 {onToggleListening && (
                   <button
                     onClick={onToggleListening}

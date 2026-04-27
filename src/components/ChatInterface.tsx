@@ -317,7 +317,7 @@ export default function ChatInterface({ profile, onQuestionEvaluated, onMenuClic
   };
 
   return (
-    <div className="flex-1 flex flex-col h-[100dvh] bg-bg-card overflow-hidden relative">
+    <div className={`flex-1 flex flex-col bg-bg-card overflow-hidden relative ${isEmbedded ? 'h-full' : 'h-[100dvh]'}`}>
       {/* File Preview Modal */}
       <AnimatePresence>
         {previewFile && (

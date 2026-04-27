@@ -107,7 +107,7 @@ export default function DisabilityModeView({
         </div>
       </header>
       
-      <main className="flex-1 overflow-y-auto custom-scrollbar p-6 md:p-10">
+      <main className="flex-1 flex flex-col overflow-hidden relative">
         <AnimatePresence mode="wait">
           {activeTab === 'chat' ? (
             <motion.div
@@ -115,9 +115,9 @@ export default function DisabilityModeView({
               initial={{ opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: -10 }}
-              className="w-full h-full flex flex-col"
+              className="w-full h-full flex flex-col p-4 md:p-6 lg:p-10 pb-0"
             >
-              <div className="flex-1 bg-white rounded-3xl shadow-sm border border-slate-200 overflow-hidden relative">
+              <div className="flex-1 bg-white rounded-t-3xl shadow-sm border border-slate-200 overflow-hidden relative flex flex-col">
                 <ChatInterface 
                   profile={profile} 
                   onQuestionEvaluated={onQuestionEvaluated || (() => {})} 
@@ -135,8 +135,9 @@ export default function DisabilityModeView({
               initial={{ opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: -10 }}
-              className="max-w-4xl mx-auto space-y-10"
+              className="w-full h-full overflow-y-auto custom-scrollbar p-6 md:p-10"
             >
+              <div className="max-w-4xl mx-auto space-y-10 pb-20">
               <div className="bg-white p-8 md:p-10 rounded-2xl shadow-sm border border-slate-200">
                 <div className="mb-8">
                   <h2 className="text-xl font-semibold text-slate-900 tracking-tight mb-1">Accessibility Profiles</h2>
@@ -195,6 +196,7 @@ export default function DisabilityModeView({
                     gesture interpolation via our virtual signing avatar. Speech mode invokes zero-latency TTS responses.
                   </p>
                 </div>
+              </div>
               </div>
             </motion.div>
           ) : (
