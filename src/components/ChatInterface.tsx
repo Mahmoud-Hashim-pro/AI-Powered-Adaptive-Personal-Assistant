@@ -524,11 +524,17 @@ export default function ChatInterface({ profile, onQuestionEvaluated, onMenuClic
                 initial={{ opacity: 0, y: 10 }}
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0, scale: 0.98 }}
-                className={`flex flex-col w-full ${m.role === 'user' ? 'items-end text-end' : 'items-start text-start'}`}
+                className={`flex flex-col w-full ${
+                  profile.language === 'Arabic' || profile.language === 'Egyptian Ammiya'
+                    ? (m.role === 'user' ? 'items-start text-start' : 'items-end text-end')
+                    : (m.role === 'user' ? 'items-end text-end' : 'items-start text-start')
+                }`}
               >
                 {m.role === 'user' ? (
                   <div className="space-y-4 max-w-[90%] md:max-w-[80%]">
-                    <div className="bg-[#f1f5f9] p-6 rounded-xl border-s-4 border-primary italic text-text-main shadow-sm flex flex-col gap-2">
+                    <div className={`${
+                      profile.language === 'Arabic' || profile.language === 'Egyptian Ammiya' ? 'border-e-4' : 'border-s-4'
+                    } bg-[#f1f5f9] p-6 rounded-xl border-primary italic text-text-main shadow-sm flex flex-col gap-2`}>
                        {m.content.split('\n').map((line, i) => {
                           if (line.match(/^\[Signs:\s(.+)\]$/)) {
                             const signsMatch = line.match(/^\[Signs:\s(.+)\]$/);
