@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import { UserProfile } from "../types";
-import { motion, AnimatePresence } from "framer-motion";
+import { motion, AnimatePresence } from "motion/react";
 import { Mic, Square, Play, RefreshCw, Menu, Download, FileText, Settings, Video } from "lucide-react";
 
 interface SignVideoStudioProps {
