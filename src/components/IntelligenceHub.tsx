@@ -4,6 +4,7 @@ import { motion } from 'motion/react';
 import { Brain, TrendingUp, Star, Search, ShieldCheck, BarChart3, PieChart as PieChartIcon, Activity, Menu } from 'lucide-react';
 import { ResponsiveContainer, AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, PieChart, Pie, Cell } from 'recharts';
 import { formatDate } from '../lib/utils';
+import { getTranslation } from '../lib/translations';
 
 interface IntelligenceHubProps {
   profile: UserProfile;
@@ -40,41 +41,41 @@ const IntelligenceHub = React.memo(({ profile, onMenuClick }: IntelligenceHubPro
             <Menu className="w-6 h-6" />
           </button>
           <div>
-            <h1 className="text-2xl md:text-4xl font-black text-slate-900 tracking-tighter uppercase">Intelligence Dashboard</h1>
-            <p className="text-xs md:text-sm text-slate-500 font-medium mt-1">Analytics and intelligence tracking over time.</p>
+            <h1 className="text-2xl md:text-4xl font-black text-slate-900 tracking-tighter uppercase">{getTranslation(profile.language, 'dashboard')}</h1>
+            <p className="text-xs md:text-sm text-slate-500 font-medium mt-1">{getTranslation(profile.language, 'analyticsSubtitle')}</p>
           </div>
         </div>
         <div className="flex self-start md:self-auto items-center gap-3 px-6 py-2 bg-white rounded-2xl border border-slate-200 shadow-sm">
           <Activity className="w-4 h-4 text-emerald-500 animate-pulse" />
-          <span className="text-xs font-black text-slate-900 uppercase tracking-widest">Tracking Active</span>
+          <span className="text-xs font-black text-slate-900 uppercase tracking-widest">{getTranslation(profile.language, 'trackingActive')}</span>
         </div>
       </header>
 
       {/* Metric Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         <MetricCard 
-          label="IQ Score" 
+          label={getTranslation(profile.language, 'iqScore')} 
           value={profile.iqScore || 0} 
           icon={Brain} 
           color="blue"
           trend={`+${(profile.questionHistory.length * 0.5).toFixed(1)}`}
         />
         <MetricCard 
-          label="Merit Points" 
+          label={getTranslation(profile.language, 'meritPoints')} 
           value={profile.points} 
           icon={Star} 
           color="amber"
           trend="Validated"
         />
         <MetricCard 
-          label="Growth Index" 
+          label={getTranslation(profile.language, 'growthIndex')} 
           value={`${growthIndex}%`} 
           icon={TrendingUp} 
           color="emerald"
           trend="Upward"
         />
         <MetricCard 
-          label="Cognitive Level" 
+          label={getTranslation(profile.language, 'difficultyLevel')} 
           value={profile.level} 
           icon={ShieldCheck} 
           color="purple"
@@ -87,7 +88,7 @@ const IntelligenceHub = React.memo(({ profile, onMenuClick }: IntelligenceHubPro
         <div className="lg:col-span-2 bg-white p-8 rounded-[40px] border border-slate-200 shadow-sm min-h-[400px] flex flex-col">
           <div className="flex justify-between items-center mb-8">
             <h3 className="text-lg font-black text-slate-900 flex items-center gap-3">
-              <BarChart3 className="w-5 h-5 text-primary" /> Intelligence Progression Curve
+              <BarChart3 className="w-5 h-5 text-primary" /> {getTranslation(profile.language, 'progressionCurve')}
             </h3>
           </div>
           
@@ -95,7 +96,7 @@ const IntelligenceHub = React.memo(({ profile, onMenuClick }: IntelligenceHubPro
             {chartData.length === 0 ? (
               <div className="w-full h-full flex flex-col items-center justify-center text-slate-300 gap-3 border-2 border-dashed border-slate-100 rounded-[32px]">
                 <Search className="w-8 h-8" />
-                <p className="text-sm font-bold uppercase tracking-widest">No spectral data detected</p>
+                <p className="text-sm font-bold uppercase tracking-widest">{getTranslation(profile.language, 'noData')}</p>
               </div>
             ) : (
               <ResponsiveContainer width="100%" height="100%">
@@ -150,7 +151,7 @@ const IntelligenceHub = React.memo(({ profile, onMenuClick }: IntelligenceHubPro
         <div className="space-y-8 flex flex-col">
           <div className="bg-white p-8 rounded-[40px] border border-slate-200 shadow-sm flex-1 flex flex-col">
             <h3 className="text-lg font-black text-slate-900 mb-6 flex items-center gap-3">
-              <PieChartIcon className="w-5 h-5 text-purple-500" /> Cognitive Distribution
+              <PieChartIcon className="w-5 h-5 text-purple-500" /> {getTranslation(profile.language, 'cognitiveDistribution')}
             </h3>
             <div className="flex-1 flex items-center justify-center min-h-[200px]">
               <ResponsiveContainer width="100%" height="100%">
@@ -176,7 +177,7 @@ const IntelligenceHub = React.memo(({ profile, onMenuClick }: IntelligenceHubPro
                 <div key={l} className="flex justify-between items-center text-xs font-bold">
                   <div className="flex items-center gap-2">
                     <div className={ `w-2 h-2 rounded-full ${l === 'Advanced' ? 'bg-purple-500' : l === 'Intermediate' ? 'bg-blue-500' : 'bg-orange-500'}` } />
-                    <span className="text-slate-500">{l} Integration</span>
+                    <span className="text-slate-500">{l} {getTranslation(profile.language, 'integration')}</span>
                   </div>
                   <span className="text-slate-900">{profile.level === l ? '100%' : '0%'}</span>
                 </div>
@@ -185,16 +186,16 @@ const IntelligenceHub = React.memo(({ profile, onMenuClick }: IntelligenceHubPro
           </div>
 
           <div className="bg-slate-900 p-8 rounded-[40px] text-white shadow-xl relative overflow-hidden group">
-            <div className="absolute -right-4 -top-4 w-24 h-24 bg-primary/20 rounded-full blur-2xl group-hover:scale-150 transition-transform duration-700" />
+            <div className="absolute -end-4 -top-4 w-24 h-24 bg-primary/20 rounded-full blur-2xl group-hover:scale-150 transition-transform duration-700" />
             <div className="relative z-10">
               <div className="flex items-center gap-3 mb-4 text-primary">
                 <ShieldCheck className="w-5 h-5" />
-                <span className="text-[10px] font-black uppercase tracking-[0.2em]">Validated Profile</span>
+                <span className="text-[10px] font-black uppercase tracking-[0.2em]">{getTranslation(profile.language, 'validatedProfile')}</span>
               </div>
-              <h3 className="text-xl font-bold mb-2">Recalibration</h3>
-              <p className="text-slate-400 text-sm mb-6 leading-relaxed">System allows assessment retakes every 30 days to ensure validity.</p>
+              <h3 className="text-xl font-bold mb-2">{getTranslation(profile.language, 'recalibration')}</h3>
+              <p className="text-slate-400 text-sm mb-6 leading-relaxed">{getTranslation(profile.language, 'recalibrationDesc')}</p>
               <div className="p-4 bg-white/5 rounded-2xl border border-white/10 text-center">
-                <span className="text-xs font-bold text-slate-300">Next available: </span>
+                <span className="text-xs font-bold text-slate-300">{getTranslation(profile.language, 'nextAvailable')} </span>
                 <span className="text-xs font-black text-white ml-2">
                   {profile.lastQuizDate ? new Date(new Date(profile.lastQuizDate).getTime() + 30 * 24 * 60 * 60 * 1000).toLocaleDateString() : 'Now'}
                 </span>
