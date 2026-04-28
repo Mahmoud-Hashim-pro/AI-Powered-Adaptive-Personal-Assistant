@@ -29,7 +29,7 @@ export default function AccessibilityOverlay({ mode, profile, aiResponse = "", o
 
   const [currentWord, setCurrentWord] = useState("");
   const [isSpeaking, setIsSpeaking] = useState(false);
-  const [autoSpeak, setAutoSpeak] = useState(mode !== 'None');
+  const [autoSpeak, setAutoSpeak] = useState(mode !== 'None' && mode !== 'Sign-Only');
   const [avatarImage, setAvatarImage] = useState("https://images.unsplash.com/photo-1560250097-0b93528c311a?auto=format&fit=crop&q=80&w=400&h=600");
   const [signHistory, setSignHistory] = useState<string[]>([]);
 
