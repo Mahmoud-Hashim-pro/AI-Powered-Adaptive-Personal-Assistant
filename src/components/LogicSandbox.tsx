@@ -4,6 +4,7 @@ import { motion, AnimatePresence } from 'motion/react';
 import { Brain, Sparkles, Target, Zap, ChevronRight, HelpCircle, Lightbulb, Menu, Send, Loader2, ArrowLeft } from 'lucide-react';
 import { generateLogicResponse } from '../services/gemini';
 import Markdown from 'react-markdown';
+import { getTranslation } from '../lib/translations';
 
 interface LogicSandboxProps {
   profile: UserProfile;
@@ -142,7 +143,7 @@ export default function LogicSandbox({ profile, onMenuClick }: LogicSandboxProps
           <Menu className="w-6 h-6" />
         </button>
         <div>
-          <h1 className="text-2xl md:text-4xl font-black text-slate-900 tracking-tighter uppercase">Logic Sandbox</h1>
+          <h1 className="text-2xl md:text-4xl font-black text-slate-900 tracking-tighter uppercase">{getTranslation(profile.language, 'sandbox')}</h1>
           <p className="text-xs md:text-sm text-slate-500 font-medium italic mt-1">Training modules calibrated for your IQ Score: {profile.iqScore || 0}</p>
         </div>
       </header>
@@ -278,7 +279,7 @@ export default function LogicSandbox({ profile, onMenuClick }: LogicSandboxProps
                       type="text"
                       value={input}
                       onChange={(e) => setInput(e.target.value)}
-                      placeholder="Enter your answer or ask for a breakdown..."
+                      placeholder={getTranslation(profile.language, 'typeMessage')}
                       className="w-full bg-slate-50 pl-6 pr-14 py-4 rounded-2xl border border-slate-200 focus:border-primary focus:ring-4 focus:ring-primary/5 outline-none transition-all text-sm font-medium"
                       disabled={isLoading}
                     />
