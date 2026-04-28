@@ -1,322 +1,301 @@
-import { useState, useEffect, useRef } from "react";
-import { UserProfile } from "../types";
-import { motion, AnimatePresence } from "motion/react";
-import { Mic, Square, Play, RefreshCw, Menu, Download, FileText, Settings, Video } from "lucide-react";
+import { useState, useEffect } from "react";
+import { UserProfile, CognitiveLevel, UserRole, Field, AccessibilityMode, ChatThread } from "../types";
+import { User, Settings, Brain, Briefcase, GraduationCap, Accessibility, Layers, MessageSquare, BarChart3, AlertCircle, LogOut, Plus, ChevronRight, X, Moon, Sun, Video, Mic } from "lucide-react";
+import { logout } from "../lib/firebase";
+import { getTranslation } from "../lib/translations";
 
-interface SignVideoStudioProps {
+interface SidebarProps {
   profile: UserProfile;
-  onMenuClick: () => void;
-  isEmbedded?: boolean;
+  setProfile: (profile: UserProfile) => void;
+  currentView: 'chat' | 'hub' | 'profile' | 'settings' | 'logic' | 'video' | 'disability';
+  setCurrentView: (view: 'chat' | 'hub' | 'profile' | 'settings' | 'logic' | 'video' | 'disability') => void;
+  isDarkMode: boolean;
+  toggleTheme: () => void;
+  openLiveCaptions: () => void;
 }
 
-export default function SignVideoStudio({ profile, onMenuClick, isEmbedded }: SignVideoStudioProps) {
-  const [inputText, setInputText] = useState("");
-  const [isRecording, setIsRecording] = useState(false);
-  const [isPlaying, setIsPlaying] = useState(false);
-  const [playbackProgress, setPlaybackProgress] = useState(0);
-  const [currentSignWord, setCurrentSignWord] = useState<string | null>(null);
-  const [sequence, setSequence] = useState<string[]>([]);
-  const [isGenerating, setIsGenerating] = useState(false);
-  
-  const recognitionRef = useRef<any>(null);
-
-  // Setup exact same getHandPose as overlay, or just basic mapping
-  const getHandPose = (word: string, side: 'left' | 'right') => {
-    const w = word.toLowerCase();
-    
-    // Exact ASL Letters
-    if (w.length === 1 && /^[a-z]$/.test(w)) {
-        const charCode = w.charCodeAt(0) - 97;
-        const xOffset = (charCode % 5) * 5;
-        const yOffset = (charCode % 3) * 10 - 15;
-        const rotateOffset = (charCode % 7) * 10 - 30;
-        
-        return {
-          x: side === 'left' ? xOffset : -xOffset,
-          y: yOffset + 20, /* Shifted up slightly for studio */
-          rotate: side === 'left' ? rotateOffset : -rotateOffset,
-          scale: 0.9,
-          opacity: 0.9,
-          transition: { type: "spring", stiffness: 150, damping: 15 }
-        };
-    }
-
-    // Logic for other words (copied from overlay for consistency)
-    if (['hello', 'hi', 'hey', 'مرحبا', 'اهلا', 'سلام'].some(g => w.includes(g))) {
-        return side === 'left' 
-          ? { x: 55, y: -70, rotate: 85, scale: 1.35, opacity: 1, transition: { type: "spring", stiffness: 120, damping: 10 } } 
-          : { x: -10, y: 15, rotate: 5, scale: 0.9, opacity: 0.8 };
-    }
-    if (['thank', 'shukran', 'شكرا', 'تقدير', 'love'].some(g => w.includes(g))) {
-        return { y: [0, 50, 0], x: side === 'left' ? 20 : -20, scale: [1, 1.4, 1], rotate: side === 'left' ? -45 : 45, transition: { duration: 0.8 } };
-    }
-    if (['think', 'know', 'brain', 'mind', 'cognify', 'عقل', 'فكر', 'اعرف', 'ذكاء', 'ai'].some(g => w.includes(g))) {
-        return side === 'left' 
-          ? { y: -90, x: 30, rotate: 115, scale: 1.15, opacity: 1, transition: { type: "spring", stiffness: 80, damping: 12 } } 
-          : { y: -25, x: -15, rotate: -20, scale: 0.85, opacity: 0.65 };
-    }
-    if (['help', 'support', 'assist', 'مساعدة', 'عون', 'please'].some(g => w.includes(g))) {
-        return { y: [30, 50, 30], x: side === 'left' ? 50 : -50, rotate: side === 'left' ? 15 : -15, scale: [1.3, 1.5, 1.3], opacity: 1, transition: { repeat: Infinity, duration: 1.5 } };
-    }
-    if (['what', 'where', 'how', 'why', 'who', 'ماذا', 'اين', 'كيف', 'لماذا', 'من', '؟'].some(q => w.includes(q))) {
-        return { x: side === 'left' ? -65 : 65, y: -30, scale: 1.35, rotate: side === 'left' ? [-50, -40, -50] : [50, 40, 50], transition: { repeat: Infinity, duration: 0.5 } };
-    }
-    if (['yes', 'ok', 'حق', 'نعم', 'حاضر', 'صحيح', 'تمام'].some(x => w.includes(x))) {
-        return { y: [0, 40, 0, 40, 0], scale: 1.3, rotate: side === 'left' ? -10 : 10, transition: { duration: 0.6 } };
-    }
-    if (['no', 'not', 'never', 'don', 'لا', 'كلا', 'ليس'].some(x => w.includes(x))) {
-        return { x: side === 'left' ? [-50, 0, -50] : [50, 0, 50], rotate: side === 'left' ? -40 : 40, scale: 0.8, transition: { duration: 0.4, repeat: 1 } };
-    }
-    // Default talking/spelling animation
-    return side === 'left' 
-      ? { x: [-20, 25, -5, 0], y: [0, -40, 20, 0], rotate: [-25, 45, -55, -25], scale: [1, 1.25, 0.9, 1], transition: { duration: 0.7 } } 
-      : { x: [20, -25, 5, 0], y: [0, 40, -20, 0], rotate: [25, -45, 55, 25], scale: [1, 1.25, 0.9, 1], transition: { duration: 0.8 } };
+export default function Sidebar({ profile, setProfile, currentView, setCurrentView, isDarkMode, toggleTheme, openLiveCaptions }: SidebarProps) {
+  const handleChange = (key: keyof UserProfile, value: string) => {
+    setProfile({ ...profile, [key]: value });
   };
 
-  const startRecording = () => {
-    if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
-      const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
-      const recognition = new SpeechRecognition();
-      recognition.continuous = true;
-      recognition.interimResults = true;
-      recognition.lang = profile.language === 'Arabic' ? 'ar-SA' : 'en-US';
-
-      recognition.onresult = (event: any) => {
-        let text = "";
-        for (let i = event.resultIndex; i < event.results.length; ++i) {
-             text += event.results[i][0].transcript;
-        }
-        setInputText(text);
-      };
-
-      recognition.onerror = () => { setIsRecording(false); };
-      recognition.onend = () => { setIsRecording(false); };
-      
-      recognitionRef.current = recognition;
-      recognition.start();
-      setIsRecording(true);
-    } else {
-      alert("Speech recognition is not supported in this browser.");
+  const startNewChat = () => {
+    // Check if there's already a thread named New Chat (we can't check messages.length easily now)
+    const existingNewChat = profile.chatThreads?.find(t => t.title === 'New Chat');
+    if (existingNewChat) {
+      setProfile({ ...profile, activeThreadId: existingNewChat.id });
+      setCurrentView('chat');
+      return;
     }
-  };
 
-  const stopRecording = () => {
-    if (recognitionRef.current) {
-      recognitionRef.current.stop();
-    }
-    setIsRecording(false);
-  };
-
-  const generateVideo = () => {
-    if (!inputText.trim()) return;
-    setIsGenerating(true);
-    // Simulate generation delay
-    setTimeout(() => {
-      // Split into words, filter out empty
-      const words = inputText.trim().split(/\s+/).filter(Boolean);
-      setSequence(words);
-      setIsGenerating(false);
-      setPlaybackProgress(0);
-      setIsPlaying(true);
-    }, 1500);
-  };
-
-  useEffect(() => {
-    let playInterval: any;
-    if (isPlaying && sequence.length > 0) {
-      playInterval = setInterval(() => {
-        setPlaybackProgress((prev) => {
-          if (prev >= sequence.length - 1) {
-            clearInterval(playInterval);
-            setIsPlaying(false);
-            return sequence.length;
-          }
-          return prev + 1;
-        });
-      }, 1000); // 1 second per word
-    }
-    
-    return () => {
-        if (playInterval) clearInterval(playInterval);
+    const newThread: ChatThread = {
+      id: Date.now().toString(),
+      title: 'New Chat',
+      updatedAt: new Date().toISOString()
     };
-  }, [isPlaying, sequence]);
+    
+    const updatedThreads = [...(profile.chatThreads || []), newThread];
+    setProfile({
+      ...profile,
+      chatThreads: updatedThreads,
+      activeThreadId: newThread.id
+    });
+    setCurrentView('chat');
+  };
 
-  const activeWord = playbackProgress < sequence.length ? sequence[playbackProgress] : '';
+  const switchThread = (threadId: string) => {
+    setProfile({ ...profile, activeThreadId: threadId });
+    setCurrentView('chat');
+  };
+
+    const navItems = [
+    { id: 'chat', label: getTranslation(profile.language, 'chatSession'), icon: MessageSquare },
+    { id: 'hub', label: getTranslation(profile.language, 'dashboard'), icon: BarChart3 },
+    { id: 'logic', label: getTranslation(profile.language, 'logicTraining'), icon: Brain },
+    { id: 'profile', label: getTranslation(profile.language, 'myProfile'), icon: User },
+    { id: 'settings', label: getTranslation(profile.language, 'settings'), icon: Settings },
+  ] as const;
+
+  const isAdmin = ['pro.mahmoud.h@gmail.com', 'modyhashim2006@gmail.com'].includes(profile.email?.toLowerCase() || '');
 
   return (
-    <div className="flex-1 flex flex-col bg-slate-50 relative overflow-hidden h-full">
-      {!isEmbedded && (
-        <header className="p-6 md:p-10 shrink-0 flex items-center justify-between z-10 relative bg-white border-b border-slate-200">
-           <div className="flex items-center gap-4">
-             <button 
-              onClick={onMenuClick}
-              className="lg:hidden p-2 text-slate-500 bg-white shadow-sm border border-slate-200 hover:bg-slate-50 rounded-lg active:scale-95"
+    <div className="w-[300px] h-full bg-white text-text-main border-e border-slate-100 p-8 flex flex-col gap-6 overflow-y-auto custom-scrollbar shadow-sm z-20">
+      <div className="flex items-center gap-4 mb-2">
+        <div className="p-3 bg-slate-900 rounded-2xl shadow-xl shadow-slate-200">
+          <Layers className="w-6 h-6 text-white" />
+        </div>
+        <h1 className="text-2xl font-black tracking-tighter text-slate-900 uppercase leading-none">Cognify<br/><span className="text-[10px] text-primary tracking-widest italic">C.O.G.N.I.F.Y</span></h1>
+      </div>
+
+      <button 
+        onClick={startNewChat}
+        className="w-full flex items-center justify-center gap-2 py-4 bg-primary text-white rounded-2xl font-black text-xs uppercase tracking-widest hover:bg-black transition-all shadow-lg shadow-primary/20 hover:shadow-none active:scale-95"
+      >
+        <Plus className="w-4 h-4" /> {getTranslation(profile.language, 'newThread')}
+      </button>
+
+      <div className="flex flex-col gap-6">
+        <nav className="flex flex-col gap-1.5">
+          <div className="text-[10px] font-black text-slate-300 uppercase tracking-widest mb-1 ms-2">{getTranslation(profile.language, 'mainNavigation')}</div>
+          {navItems.map((item) => (
+            <button 
+              key={item.id}
+              onClick={() => setCurrentView(item.id)}
+              className={`flex items-center gap-3 px-5 py-3.5 rounded-2xl text-[11px] font-black uppercase tracking-widest transition-all ${currentView === item.id ? 'bg-slate-900 text-white shadow-xl shadow-slate-200' : 'text-slate-400 hover:text-slate-900 hover:bg-slate-50'}`}
             >
-              <Menu className="w-6 h-6" />
+              <item.icon className={`w-3.5 h-3.5 ${currentView === item.id ? 'text-primary' : ''}`} /> {item.label}
             </button>
-             <div>
-               <h1 className="text-3xl font-bold tracking-tight text-slate-900 flex items-center gap-3">
-                 Sign Video Studio 
-                 <div className="px-2 py-1 bg-primary/10 text-primary rounded-md text-xs font-bold uppercase tracking-widest border border-primary/20">Beta</div>
-               </h1>
-               <p className="text-sm text-slate-500 font-medium mt-1">Generate AI Sign Language videos from speech or text input.</p>
-             </div>
+          ))}
+        </nav>
+
+        {(profile.chatThreads?.length || 0) > 0 && (
+          <div className="flex flex-col gap-2">
+            <div className="flex items-center justify-between mb-1 ms-2 me-2">
+              <div className="text-[10px] font-black text-slate-300 uppercase tracking-widest">{getTranslation(profile.language, 'chatHistory')}</div>
+              <button 
+                onClick={() => setProfile({ ...profile, chatThreads: [], activeThreadId: undefined })}
+                className="text-[9px] font-bold text-rose-400 hover:text-rose-600 transition-colors uppercase tracking-widest"
+                title="Clear all chats"
+              >
+                {getTranslation(profile.language, 'clearAll')}
+              </button>
+            </div>
+            <div className="flex flex-col gap-1 max-h-[160px] overflow-y-auto custom-scrollbar pr-2">
+              {profile.chatThreads?.slice().reverse().map((t) => {
+                const snippet = t.lastMessageSnippet || 'No messages yet';
+                
+                return (
+                  <div key={t.id} className={`flex items-center justify-between gap-1 px-4 py-2 rounded-xl text-[10px] font-bold text-left transition-all group ${profile.activeThreadId === t.id ? 'bg-primary/5 border border-primary text-primary' : 'text-slate-500 hover:bg-slate-50 border border-transparent'}`}>
+                    <button
+                      onClick={() => switchThread(t.id)}
+                      className="flex flex-col flex-1 py-1 text-left overflow-hidden min-w-0"
+                    >
+                      <span className="truncate w-full font-bold">{t.title}</span>
+                      <span className="truncate w-full text-[9px] opacity-70 mt-0.5 font-normal">
+                        {snippet}
+                      </span>
+                    </button>
+                    <div className="flex items-center opacity-0 group-hover:opacity-100 transition-opacity">
+                      <button 
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          const updatedThreads = profile.chatThreads?.filter(thread => thread.id !== t.id) || [];
+                          setProfile({ ...profile, chatThreads: updatedThreads, activeThreadId: updatedThreads.length > 0 ? updatedThreads[updatedThreads.length - 1].id : undefined });
+                        }}
+                        className="p-1.5 hover:bg-rose-100 hover:text-rose-600 rounded-md transition-colors"
+                        title="Delete Chat"
+                      >
+                        <X className="w-3 h-3" />
+                      </button>
+                    </div>
+                    {profile.activeThreadId === t.id && <ChevronRight className={`w-3 h-3 flex-shrink-0 ms-1 ${profile.language === 'Arabic' || profile.language === 'Egyptian Ammiya' ? 'rotate-180' : ''}`} />}
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
+      </div>
+
+      <div className="flex flex-col gap-4">
+         <div className="text-[10px] font-black text-slate-300 uppercase tracking-widest mb-1 ms-2">{getTranslation(profile.language, 'features')}</div>
+         <div className="px-5 py-4 rounded-2xl bg-slate-50 border border-slate-100 relative group overflow-hidden">
+           <div className="relative z-10">
+             <p className="text-[10px] font-black text-slate-900 uppercase tracking-widest mb-1 group-hover:text-primary transition-colors">Graduation Project</p>
+             <p className="text-[9px] text-slate-400 font-bold italic">Coming Soon</p>
            </div>
-        </header>
-      )}
-      
-      <div className="flex-1 overflow-y-auto p-6 md:p-10 z-10 relative flex flex-col items-center">
-         <div className="w-full max-w-5xl grid grid-cols-1 lg:grid-cols-2 gap-8 h-full">
-            
-            {/* Input Section */}
-            <div className="flex flex-col gap-6 w-full h-full">
-               <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-6 flex-1 flex flex-col">
-                  <div className="flex items-center justify-between mb-4">
-                     <h2 className="text-lg font-bold text-slate-800 flex items-center gap-2">
-                       <FileText className="w-5 h-5 text-primary" />
-                       Script Input
-                     </h2>
-                  </div>
-                  
-                  <textarea
-                    value={inputText}
-                    onChange={(e) => setInputText(e.target.value)}
-                    placeholder="Type or dictate the script you want to convert to sign language video..."
-                    className="flex-1 w-full p-4 bg-slate-50 border border-slate-200 rounded-xl resize-none focus:outline-none focus:ring-2 focus:ring-primary/50 text-slate-700"
-                  />
-                  
-                  <div className="mt-4 flex flex-col sm:flex-row gap-3">
-                     {isRecording ? (
-                        <button 
-                          onClick={stopRecording}
-                          className="flex items-center justify-center gap-2 px-6 py-3 bg-red-500 hover:bg-red-600 active:scale-95 transform transition-all text-white font-medium rounded-xl shadow-lg shadow-red-500/20"
-                        >
-                           <Square className="w-5 h-5 fill-current" />
-                           Stop Recording
-                        </button>
-                     ) : (
-                        <button 
-                          onClick={startRecording}
-                          className="flex items-center justify-center gap-2 px-6 py-3 bg-white border border-slate-200 hover:bg-slate-50 active:scale-95 transform transition-all text-slate-700 font-medium rounded-xl shadow-sm"
-                        >
-                           <Mic className="w-5 h-5 text-red-500" />
-                           Record Speech
-                        </button>
-                     )}
-                     
-                     <button 
-                       onClick={generateVideo}
-                       disabled={!inputText.trim() || isGenerating}
-                       className="flex-1 flex items-center justify-center gap-2 px-6 py-3 bg-primary hover:bg-blue-700 disabled:opacity-50 disabled:active:scale-100 active:scale-95 transform transition-all text-white font-bold rounded-xl shadow-lg shadow-primary/20"
-                     >
-                        {isGenerating ? <RefreshCw className="w-5 h-5 animate-spin" /> : <Video className="w-5 h-5" />}
-                        {isGenerating ? 'Rendering Video...' : 'Generate Video'}
-                     </button>
-                  </div>
-               </div>
-            </div>
-            
-            {/* Output Section */}
-            <div className="bg-slate-900 rounded-3xl shadow-2xl border border-slate-800 p-2 flex flex-col relative overflow-hidden h-[500px] lg:h-full min-h-[500px]">
-               {/* Player Header */}
-               <div className="absolute top-4 left-6 right-6 z-30 flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                     <div className="w-2.5 h-2.5 rounded-full bg-red-500 animate-pulse" />
-                     <span className="text-xs font-black uppercase tracking-widest text-white/80 drop-shadow-md">LIVE PREVIEW</span>
-                  </div>
-                  <button className="text-white/50 hover:text-white transition-colors bg-black/40 p-2 rounded-lg backdrop-blur-md">
-                    <Download className="w-5 h-5" />
-                  </button>
-               </div>
-               
-               {/* Video Area */}
-               <div className="flex-1 relative flex items-center justify-center rounded-2xl overflow-hidden bg-slate-950">
-                  {sequence.length === 0 ? (
-                     <div className="text-center p-8 z-10 flex flex-col items-center">
-                        <Video className="w-16 h-16 text-slate-700 mb-4" />
-                        <p className="text-slate-400 font-medium max-w-[250px]">Enter your script and generate to see the AI sign language video.</p>
-                     </div>
-                  ) : (
-                     <>
-                        <motion.div 
-                          className="w-full h-full relative z-10 flex flex-col items-center justify-end overflow-hidden"
-                          animate={{ 
-                             filter: isPlaying ? "contrast(1.05) saturate(1.15)" : "contrast(1) saturate(1)"
-                          }}
-                        >
-                           <img 
-                             src="https://images.unsplash.com/photo-1560250097-0b93528c311a?auto=format&fit=crop&q=80&w=600&h=800" 
-                             alt="AI Avatar"
-                             className="absolute inset-0 w-full h-full object-cover object-top opacity-30 brightness-50 mix-blend-luminosity"
-                           />
-                           
-                           <div className="absolute inset-0 z-20 flex items-center justify-center pointer-events-none">
-                             <motion.img 
-                               drag
-                               dragConstraints={{ left: -150, right: 150, top: -300, bottom: 100 }}
-                               dragElastic={0.2}
-                               src="https://img.icons8.com/fluency/144/hand.png"
-                               animate={(isPlaying ? getHandPose(activeWord || '', 'left') : { x: 0, y: 100, rotate: -20, opacity: 0.3, scale: 0.8 }) as any}
-                               className="absolute bottom-1/4 left-[15%] w-48 h-48 drop-shadow-[0_20px_20px_rgba(59,130,246,0.5)] pointer-events-auto cursor-grab active:cursor-grabbing"
-                               style={{ transform: 'scaleX(-1)' }}
-                             />
-                             <motion.img 
-                               drag
-                               dragConstraints={{ left: -150, right: 150, top: -300, bottom: 100 }}
-                               dragElastic={0.2}
-                               src="https://img.icons8.com/fluency/144/hand.png"
-                               animate={(isPlaying ? getHandPose(activeWord || '', 'right') : { x: 0, y: 100, rotate: 20, opacity: 0.3, scale: 0.8 }) as any}
-                               className="absolute bottom-1/4 right-[15%] w-48 h-48 drop-shadow-[0_20px_20px_rgba(59,130,246,0.5)] pointer-events-auto cursor-grab active:cursor-grabbing"
-                             />
-                           </div>
-                        </motion.div>
-                        
-                        {/* Subtitles Overlay */}
-                        <div className="absolute bottom-20 left-0 right-0 text-center z-30 px-8">
-                           <span className="inline-block px-4 py-2 bg-black/60 backdrop-blur-md rounded-xl text-2xl font-black text-white uppercase tracking-widest border border-white/10 shadow-xl">
-                              {activeWord || "—"}
-                           </span>
-                        </div>
-                     </>
-                  )}
-               </div>
-               
-               {/* Player Controls Timeline */}
-               <div className="mt-2 p-4 bg-slate-900/50 rounded-xl relative z-30">
-                  <div className="flex items-center gap-4">
-                     <button 
-                       onClick={() => {
-                         if (sequence.length > 0) {
-                            if (isPlaying) {
-                              setIsPlaying(false);
-                            } else {
-                              if (playbackProgress >= sequence.length) setPlaybackProgress(0);
-                              setIsPlaying(true);
-                            }
-                         }
-                       }}
-                       disabled={sequence.length === 0}
-                       className="w-10 h-10 rounded-full bg-primary flex items-center justify-center text-white hover:bg-blue-600 disabled:opacity-50 disabled:scale-100 active:scale-95 transition-all shadow-lg"
-                     >
-                        {isPlaying ? <Square className="w-4 h-4 fill-current" /> : <Play className="w-5 h-5 ml-1 fill-current" />}
-                     </button>
-                     
-                     <div className="flex-1 h-3 bg-slate-800 rounded-full overflow-hidden relative border border-slate-700/50 cursor-pointer">
-                        <motion.div 
-                          className="absolute top-0 bottom-0 left-0 bg-primary"
-                          initial={{ width: 0 }}
-                          animate={{ width: sequence.length > 0 ? `${(playbackProgress / Math.max(1, sequence.length)) * 100}%` : '0%' }}
-                          transition={{ duration: 0.2 }}
-                        />
-                     </div>
-                     <div className="text-xs font-mono text-slate-400 font-medium w-12 text-right">
-                       00:{(playbackProgress < 10 ? '0' : '') + playbackProgress}
-                     </div>
-                  </div>
-               </div>
-            </div>
-            
+           <div className="absolute right-[-10px] bottom-[-10px] opacity-5">
+             <GraduationCap className="w-16 h-16 text-slate-900" />
+           </div>
          </div>
+         
+         <button 
+           onClick={() => setCurrentView('disability')}
+           className={`px-5 py-4 rounded-2xl bg-slate-50 border transition-all relative group overflow-hidden ${currentView === 'disability' ? 'border-primary ring-1 ring-primary/20 shadow-md shadow-primary/10' : 'border-slate-100 hover:border-primary/30 active:scale-[0.98]'}`}
+         >
+           <div className="relative z-10 text-left">
+             <p className={`text-[10px] font-black uppercase tracking-widest mb-1 transition-colors ${currentView === 'disability' ? 'text-primary' : 'text-slate-900 group-hover:text-amber-600'}`}>Disability Mode</p>
+             <p className={`text-[9px] font-bold ${currentView === 'disability' ? 'text-primary' : 'text-slate-500'}`}>Full Accessibility Suite</p>
+           </div>
+           <div className={`absolute right-[-10px] bottom-[-10px] opacity-5 transition-transform group-hover:scale-110 ${currentView === 'disability' ? 'opacity-10 text-primary' : 'text-slate-900'}`}>
+             <Accessibility className="w-16 h-16" />
+           </div>
+         </button>
+      </div>
+
+      <div className="bg-white border border-border rounded-xl p-4 space-y-3">
+        <div className="flex items-center gap-2">
+          <div className="w-8 h-8 rounded-full bg-slate-100 flex items-center justify-center overflow-hidden border border-slate-200">
+            {profile.photoURL ? (
+              <img src={profile.photoURL} alt="Avatar" className="w-full h-full object-cover" referrerPolicy="no-referrer" />
+            ) : (
+              <User className="w-4 h-4 text-slate-400" />
+            )}
+          </div>
+          <div className="truncate">
+            <p className="text-[10px] uppercase font-bold text-slate-400">User Account</p>
+            <p className="text-xs font-bold text-text-main truncate">{profile.email || 'Initializing...'}</p>
+          </div>
+        </div>
+        <div className="pt-2 border-t border-slate-50">
+          <p className="text-[10px] uppercase font-bold text-slate-400">Institution</p>
+          <div className="space-y-0.5">
+            <p className="text-xs font-bold text-text-main">{profile.role === 'Student' ? profile.university : profile.work || 'Main Account'}</p>
+            <p className="text-[10px] text-text-muted">{profile.role === 'Student' ? profile.faculty : profile.jobTitle}</p>
+          </div>
+        </div>
+      </div>
+
+      <div className="flex flex-col gap-4">
+        <div className="flex items-center justify-between">
+          <span className="text-[11px] font-bold text-text-muted uppercase tracking-[0.05em]">{getTranslation(profile.language, 'academicProfile')}</span>
+          <div className={`flex items-center gap-1 text-[9px] font-bold px-2 py-0.5 rounded-full border ${isAdmin ? 'text-emerald-600 bg-emerald-50 border-emerald-100' : 'text-amber-600 bg-amber-50 border-amber-100'}`}>
+            <AlertCircle className="w-3 h-3" /> {isAdmin ? 'ADMIN' : 'LOCKED'}
+          </div>
+        </div>
+        
+        <div className="flex flex-col gap-3">
+          <label className="text-[11px] font-bold text-text-muted uppercase">{getTranslation(profile.language, 'difficultyLevel')}</label>
+          <div className="grid grid-cols-1 gap-1.5 opacity-80">
+            {(['Basic', 'Intermediate', 'Advanced'] as CognitiveLevel[]).map((l) => (
+              <button
+                key={l}
+                disabled={!isAdmin}
+                onClick={() => isAdmin && handleChange('level', l)}
+                className={`text-left px-4 py-2 rounded-lg text-sm border transition-all ${isAdmin ? 'cursor-pointer hover:border-primary/30' : 'cursor-not-allowed'} ${
+                  profile.level === l 
+                    ? 'bg-primary/5 border-primary text-primary font-bold' 
+                    : 'bg-white border-border text-text-muted'
+                }`}
+              >
+                {l}
+              </button>
+            ))}
+          </div>
+          <p className="text-[9px] text-slate-400 italic font-medium -mt-1 px-1">
+            {isAdmin ? 'Admin override active.' : 'Recalibration available every 30 terrestrial days.'}
+          </p>
+        </div>
+      </div>
+
+      <div className="flex flex-col gap-4">
+        <div className="flex items-center justify-between">
+          <span className="text-[11px] font-bold text-text-muted uppercase tracking-[0.05em]">{getTranslation(profile.language, 'accountDetails')}</span>
+          <div className={`flex items-center gap-1 text-[9px] font-bold px-2 py-0.5 rounded-full border ${isAdmin ? 'text-emerald-600 bg-emerald-50 border-emerald-100' : 'text-amber-600 bg-amber-50 border-amber-100'}`}>
+            <AlertCircle className="w-3 h-3" /> {isAdmin ? "ADMIN CONTROL" : "VERIFIED"}
+          </div>
+        </div>
+        
+        <div className="flex flex-col gap-2">
+          <label className="text-[11px] font-bold text-text-muted uppercase">{getTranslation(profile.language, 'userRole')}</label>
+          <div className="flex gap-2 opacity-80">
+            {(['Student', 'Professional'] as UserRole[]).map((r) => (
+              <button
+                key={r}
+                disabled={!isAdmin}
+                onClick={() => isAdmin && handleChange('role', r)}
+                className={`flex-1 flex items-center justify-center gap-2 px-3 py-2 rounded-lg text-sm border transition-all ${isAdmin ? 'cursor-pointer hover:border-primary/30' : 'cursor-not-allowed'} ${
+                  profile.role === r 
+                    ? 'bg-primary/5 border-primary text-primary font-bold' 
+                    : 'bg-white border-border text-text-muted'
+                }`}
+              >
+                {r}
+              </button>
+            ))}
+          </div>
+          <p className="text-[9px] text-slate-400 italic font-medium -mt-1 px-1">
+            {isAdmin ? 'Admin role override active.' : 'Identity validation required for role modification.'}
+          </p>
+        </div>
+
+        <div className="flex flex-col gap-3 mt-2">
+          <label className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">{getTranslation(profile.language, 'language')}</label>
+          <select
+            value={profile.language || 'English'}
+            onChange={(e) => handleChange('language', e.target.value)}
+            className="bg-slate-50 border border-slate-100 text-slate-900 rounded-xl px-4 py-3 text-xs font-bold focus:ring-4 focus:ring-primary/10 focus:border-primary outline-none appearance-none cursor-pointer"
+          >
+            {['English', 'Arabic', 'Egyptian Ammiya', 'French', 'Spanish', 'German', 'Italian', 'Portuguese', 'Russian', 'Chinese', 'Japanese'].map((l) => (
+              <option key={l} value={l}>{l}</option>
+            ))}
+          </select>
+        </div>
+      </div>
+
+
+
+      <div className="mt-auto pt-6 flex flex-col gap-3">
+        <button
+          onClick={toggleTheme}
+          className="w-full flex items-center justify-between px-4 py-3 rounded-xl text-xs font-black text-slate-700 bg-slate-50 border border-slate-100 hover:bg-slate-100 transition-all uppercase tracking-widest dark:bg-slate-900 dark:text-slate-300 dark:border-slate-800 dark:hover:bg-slate-800"
+        >
+          <span className="flex items-center gap-2">
+            {isDarkMode ? <Sun className="w-4 h-4 text-amber-500" /> : <Moon className="w-4 h-4 text-slate-500" />} 
+            Theme
+          </span>
+          <span className="text-[9px] px-2 py-0.5 rounded-full bg-slate-200 text-slate-600 dark:bg-slate-800 dark:text-slate-400">
+            {isDarkMode ? 'DARK' : 'LIGHT'}
+          </span>
+        </button>
+
+        <button
+          onClick={openLiveCaptions}
+          className="w-full flex items-center justify-center gap-2 px-4 py-3 rounded-[17px] border border-[#443158] text-xs font-black text-primary bg-slate-900 transition-all active:scale-95 uppercase tracking-widest shadow-xl"
+        >
+          <Mic className="w-4 h-4" /> Live Captions
+        </button>
+
+        <button
+          onClick={() => logout()}
+          className="w-full flex items-center justify-center gap-2 px-4 py-3 rounded-xl text-xs font-black text-rose-600 bg-rose-50 border border-rose-100 hover:bg-rose-100 transition-all active:scale-95 uppercase tracking-widest"
+        >
+          <LogOut className="w-4 h-4" /> {getTranslation(profile.language, 'logout')}
+        </button>
+
+        <div className="text-slate-500 text-[10px] uppercase tracking-[0.2em] font-bold">
+          Cognify Engine v2.0
+        </div>
       </div>
     </div>
   );
