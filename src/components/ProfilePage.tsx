@@ -332,7 +332,7 @@ function DataField({
   );
 }
 
-function Brain(props: any) {
+function BrainIconWrapper(props: any) {
   return (
     <svg
       {...props}
