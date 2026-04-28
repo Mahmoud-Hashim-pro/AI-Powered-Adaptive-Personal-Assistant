@@ -5,6 +5,7 @@ import { User, Mail, Shield, Award, Languages, Globe, BookOpen, GraduationCap, B
 import { formatDate } from '../lib/utils';
 import { doc, setDoc } from 'firebase/firestore';
 import { db, handleFirestoreError, OperationType } from '../lib/firebase';
+import { getTranslation } from '../lib/translations';
 
 interface ProfilePageProps {
   profile: UserProfile;
@@ -95,7 +96,7 @@ export default function ProfilePage({ profile, onMenuClick }: ProfilePageProps) 
             <Menu className="w-6 h-6" />
           </button>
           <div>
-            <h1 className="text-2xl md:text-4xl font-black text-slate-900 tracking-tighter uppercase">User Profile</h1>
+            <h1 className="text-2xl md:text-4xl font-black text-slate-900 tracking-tighter uppercase">{getTranslation(profile.language, 'myProfile')}</h1>
             <p className="text-xs md:text-sm text-slate-500 font-medium mt-1">Manage your academic and account details.</p>
           </div>
         </div>
@@ -104,7 +105,7 @@ export default function ProfilePage({ profile, onMenuClick }: ProfilePageProps) 
             onClick={() => setIsEditing(true)}
             className="flex items-center gap-2 px-6 py-3 bg-white border border-slate-200 rounded-2xl text-slate-700 font-black text-xs uppercase tracking-widest hover:border-primary hover:text-primary transition-all shadow-sm"
           >
-            <Edit3 className="w-4 h-4" /> Edit Profile
+            <Edit3 className="w-4 h-4" /> {getTranslation(profile.language, 'edit')}
           </button>
         ) : (
           <div className="flex items-center gap-3">
@@ -112,14 +113,14 @@ export default function ProfilePage({ profile, onMenuClick }: ProfilePageProps) 
               onClick={() => { setIsEditing(false); setEditedProfile(profile); }}
               className="flex items-center gap-2 px-6 py-3 bg-white border border-slate-200 rounded-2xl text-slate-400 font-black text-xs uppercase tracking-widest hover:text-slate-600 transition-all"
             >
-              <X className="w-4 h-4" /> Cancel
+              <X className="w-4 h-4" /> {getTranslation(profile.language, 'back')}
             </button>
             <button 
               onClick={handleSave}
               disabled={saving}
               className="flex items-center gap-2 px-6 py-3 bg-slate-900 text-white rounded-2xl font-black text-xs uppercase tracking-widest hover:bg-black transition-all shadow-xl shadow-slate-200 disabled:opacity-50"
             >
-              <Save className="w-4 h-4" /> {saving ? 'Saving...' : 'Save Profile'}
+              <Save className="w-4 h-4" /> {saving ? (profile.language === 'Arabic' || profile.language === 'Egyptian Ammiya' ? 'جاري الحفظ...' : 'Saving...') : getTranslation(profile.language, 'saveChanges')}
             </button>
           </div>
         )}
@@ -149,7 +150,7 @@ export default function ProfilePage({ profile, onMenuClick }: ProfilePageProps) 
               )}
 
               {!isEditing && (
-                <div className="absolute -bottom-2 -right-2 bg-primary text-white p-2 rounded-2xl shadow-lg border-2 border-white z-10">
+                <div className="absolute -bottom-2 -end-2 bg-primary text-white p-2 rounded-2xl shadow-lg border-2 border-white z-10">
                   <Shield className="w-4 h-4" />
                 </div>
               )}
@@ -186,16 +187,16 @@ export default function ProfilePage({ profile, onMenuClick }: ProfilePageProps) 
                 <span className="truncate">{profile.email}</span>
               </div>
               <DataField 
-                label="Language" 
+                label={getTranslation(profile.language, 'language')} 
                 value={profile.language} 
                 icon={Languages} 
                 isEditing={isEditing} 
                 onChange={(v) => handleChange('language', v)} 
                 type="select"
-                options={['English', 'Arabic', 'French', 'Spanish', 'German']}
+                options={['English', 'Arabic', 'Egyptian Ammiya', 'French', 'Spanish', 'German', 'Italian', 'Portuguese', 'Russian', 'Chinese', 'Japanese']}
               />
               <DataField 
-                label="Accessibility Mode" 
+                label={getTranslation(profile.language, 'accessibilityMode')} 
                 value={profile.accessibilityMode} 
                 icon={Eye} 
                 isEditing={isEditing} 
