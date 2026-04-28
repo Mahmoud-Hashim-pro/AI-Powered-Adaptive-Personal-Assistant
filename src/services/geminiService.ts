@@ -31,15 +31,17 @@ export const geminiService = {
 
     const response = await ai.models.generateContent({
       model: "gemini-3-flash-preview",
-      contents: [
-        { text: prompt },
-        { 
-          inlineData: { 
-            data: imageData, 
-            mimeType: "image/jpeg" 
-          } 
-        }
-      ]
+      contents: {
+        parts: [
+          { text: prompt },
+          { 
+            inlineData: { 
+              data: imageData, 
+              mimeType: "image/jpeg" 
+            } 
+          }
+        ]
+      }
     });
 
     return response.text?.trim() || "[NO_SIGN]";
@@ -92,15 +94,17 @@ export const geminiService = {
     try {
       const response = await ai.models.generateContent({
         model: "gemini-3-flash-preview",
-        contents: [
-          { text: prompt },
-          { 
-            inlineData: { 
-              data: audioData, 
-              mimeType: mimeType 
-            } 
-          }
-        ]
+        contents: {
+          parts: [
+            { text: prompt },
+            { 
+              inlineData: { 
+                data: audioData, 
+                mimeType: mimeType 
+              } 
+            }
+          ]
+        }
       });
 
       const responseText = response.text?.trim() || "";
