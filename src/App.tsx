@@ -24,6 +24,8 @@ import { useAuthState } from "react-firebase-hooks/auth";
 import { doc, setDoc, onSnapshot, getDocFromServer } from "firebase/firestore";
 import { Loader2, Settings, Layers, Menu, Moon, Sun } from "lucide-react";
 
+import { isRTL, getTranslation } from "./lib/translations";
+
 export default function App() {
   const [user, loading, authError] = useAuthState(auth);
   
@@ -40,6 +42,8 @@ export default function App() {
   const [currentAIResponse, setCurrentAIResponse] = useState("");
   const [isSTTActive, setIsSTTActive] = useState(false);
   const [isLiveCaptionsOpen, setIsLiveCaptionsOpen] = useState(false);
+
+  const direction = isRTL(profile?.language) ? 'rtl' : 'ltr';
 
   // Theme management: Default to system, but respect manual override if present
   const [isDarkMode, setIsDarkMode] = useState(() => {
@@ -360,7 +364,7 @@ export default function App() {
             <div className="flex-1 flex items-center justify-center p-6 overflow-y-auto">
               <div className="bg-white rounded-[40px] border border-slate-100 shadow-2xl max-w-2xl w-full p-8 md:p-12 space-y-10">
                 <div className="text-center space-y-2">
-                  <h2 className="text-2xl md:text-3xl font-black text-slate-900 uppercase tracking-tighter">System Settings</h2>
+                  <h2 className="text-2xl md:text-3xl font-black text-slate-900 uppercase tracking-tighter">{getTranslation(profile.language, 'settings')}</h2>
                   <div className="h-1.5 w-20 bg-primary mx-auto rounded-full" />
                 </div>
 
@@ -412,7 +416,7 @@ export default function App() {
                   onClick={() => navigateTo('chat')}
                   className="w-full py-5 bg-slate-100 text-slate-900 rounded-3xl text-xs font-black uppercase tracking-widest hover:bg-slate-200 active:scale-95 transition-all flex items-center justify-center gap-2"
                 >
-                  Return to Chat
+                  {getTranslation(profile.language, 'returnToChat')}
                 </button>
               </div>
             </div>
@@ -421,7 +425,13 @@ export default function App() {
       default:
         return (
           <>
-            <ChatInterface profile={profile} onQuestionEvaluated={updateQuestionHistory} syncMessages={syncActiveThread} onMenuClick={() => setIsMobileMenuOpen(true)} />
+            <ChatInterface 
+              profile={profile} 
+              onQuestionEvaluated={updateQuestionHistory} 
+              syncMessages={syncActiveThread} 
+              onMenuClick={() => setIsMobileMenuOpen(true)}
+              onStreamingUpdate={setCurrentAIResponse}
+            />
             <div className="hidden xl:block">
               <RightPanel profile={profile} />
             </div>
@@ -432,7 +442,10 @@ export default function App() {
 
   return (
     <ErrorBoundary>
-      <div className="flex w-full h-[100dvh] bg-slate-950 font-sans overflow-hidden selection:bg-blue-500/30">
+      <div 
+        className="flex w-full h-[100dvh] bg-slate-950 font-sans overflow-hidden selection:bg-blue-500/30"
+        dir={direction}
+      >
         
         {/* Mobile menu backdrop */}
         {isMobileMenuOpen && (
@@ -444,7 +457,7 @@ export default function App() {
 
         {/* Sidebar Wrapper */}
         {currentView !== 'disability' && (
-          <div className={`fixed inset-y-0 left-0 z-50 transform ${isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full'} lg:relative lg:translate-x-0 transition-transform duration-300 ease-[cubic-bezier(0.4,0,0.2,1)] shadow-2xl lg:shadow-none`}>
+          <div className={`fixed inset-y-0 start-0 z-50 transform ${isMobileMenuOpen ? 'translate-x-0' : (direction === 'rtl' ? 'translate-x-full' : '-translate-x-full')} lg:relative lg:translate-x-0 transition-transform duration-300 ease-[cubic-bezier(0.4,0,0.2,1)] shadow-2xl lg:shadow-none`}>
             <Sidebar 
               profile={profile} 
               setProfile={async (p) => {
