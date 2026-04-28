@@ -3,6 +3,7 @@ import { UserProfile, UserRole, CognitiveLevel } from "../types";
 import { motion, AnimatePresence } from "motion/react";
 import { Mail, GraduationCap, Briefcase, Brain, ArrowRight, CheckCircle, Trophy, Timer, AlertCircle, Quote } from "lucide-react";
 import { auth } from "../lib/firebase";
+import { getTranslation, isRTL } from "../lib/translations";
 
 interface OnboardingProps {
   onComplete: (data: Partial<UserProfile>) => void;
@@ -104,7 +105,7 @@ const JOB_TITLES = [
 ];
 
 const LANGUAGES = [
-  "English", "Arabic", "French", "Spanish", "German", 
+  "English", "Arabic", "Egyptian Ammiya", "French", "Spanish", "German", 
   "Italian", "Portuguese", "Russian", "Chinese", "Japanese"
 ];
 
@@ -227,8 +228,8 @@ export default function Onboarding({ onComplete }: OnboardingProps) {
         </div>
         
         <div className="text-center space-y-2">
-          <h2 className="text-4xl font-black text-text-main tracking-tighter">Test Complete</h2>
-          <p className="text-text-muted font-medium">Your initial profile has been successfully generated.</p>
+          <h2 className="text-4xl font-black text-text-main tracking-tighter uppercase">{formData.language === 'Arabic' || formData.language === 'Egyptian Ammiya' ? 'اكتمل الاختبار' : 'Test Complete'}</h2>
+          <p className="text-text-muted font-medium">{formData.language === 'Arabic' || formData.language === 'Egyptian Ammiya' ? 'تم إنشاء ملفك الشخصي بنجاح.' : 'Your initial profile has been successfully generated.'}</p>
         </div>
 
         <div className="grid grid-cols-2 gap-4 w-full">
@@ -272,7 +273,7 @@ export default function Onboarding({ onComplete }: OnboardingProps) {
           })}
           className="w-full bg-slate-900 text-white font-bold py-4 rounded-xl shadow-lg hover:bg-black transition-all flex items-center justify-center gap-2 group"
         >
-          Initialize Account <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
+          {getTranslation(formData.language, 'finish')} <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
         </button>
       </motion.div>
     );
@@ -288,7 +289,7 @@ export default function Onboarding({ onComplete }: OnboardingProps) {
       className="flex flex-col gap-6 w-full max-w-lg"
     >
       <div className="space-y-2 text-center">
-        <h2 className="text-3xl font-extrabold tracking-tight text-slate-900 leading-tight">Language</h2>
+        <h2 className="text-3xl font-extrabold tracking-tight text-slate-900 leading-tight">{getTranslation(formData.language, 'language')}</h2>
         <p className="text-slate-500">Pick your preferred cognitive interaction language.</p>
       </div>
       
@@ -314,7 +315,7 @@ export default function Onboarding({ onComplete }: OnboardingProps) {
         disabled={!formData.language}
         className="w-full bg-primary text-white font-bold py-4 rounded-xl shadow-lg hover:bg-blue-700 disabled:bg-slate-200 disabled:text-slate-400 transition-all flex items-center justify-center gap-2 group"
       >
-        Continue <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
+        {getTranslation(formData.language, 'continue')} <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
       </button>
     </motion.div>
   );
@@ -325,7 +326,7 @@ export default function Onboarding({ onComplete }: OnboardingProps) {
       className="flex flex-col gap-6 w-full max-w-lg"
     >
       <div className="space-y-2 text-center">
-        <h2 className="text-3xl font-extrabold tracking-tight text-slate-900 leading-tight">Profession</h2>
+        <h2 className="text-3xl font-extrabold tracking-tight text-slate-900 leading-tight">{getTranslation(formData.language, 'userRole')}</h2>
         <p className="text-slate-500">What is your current occupation?</p>
       </div>
       
@@ -529,8 +530,10 @@ export default function Onboarding({ onComplete }: OnboardingProps) {
     );
   };
 
+  const direction = isRTL(formData.language) ? 'rtl' : 'ltr';
+
   return (
-    <div className="fixed inset-0 bg-bg-main z-[100] flex items-center justify-center p-6 overflow-y-auto custom-scrollbar">
+    <div dir={direction} className="fixed inset-0 bg-bg-main z-[100] flex items-center justify-center p-6 overflow-y-auto custom-scrollbar">
       {step < 4 && (
         <div className="absolute top-12 left-1/2 -translate-x-1/2 flex items-center gap-6">
           {[1, 2, 3].map(s => (
