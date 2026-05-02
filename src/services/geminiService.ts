@@ -30,7 +30,7 @@ export const geminiService = {
     Return ONLY the letter, translated word, or [NO_SIGN]. Do NOT include any markdown formatting, conversational text, or punctuation.`;
 
     const response = await ai.models.generateContent({
-      model: "gemini-3-flash-preview",
+      model: "gemini-1.5-flash",
       contents: {
         parts: [
           { text: prompt },
@@ -65,7 +65,7 @@ export const geminiService = {
 
     try {
       const response = await ai.models.generateContent({
-        model: "gemini-3-flash-preview",
+        model: "gemini-1.5-flash",
         contents: [{ text: prompt }]
       });
       return response.text?.trim() || text;
@@ -93,7 +93,7 @@ export const geminiService = {
 
     try {
       const response = await ai.models.generateContent({
-        model: "gemini-3-flash-preview",
+        model: "gemini-1.5-flash",
         contents: {
           parts: [
             { text: prompt },
@@ -128,6 +128,36 @@ export const geminiService = {
     } catch (error) {
       console.error("Gemini Transcription Error:", error);
       throw error;
+    }
+  },
+
+  /**
+   * PRO FEATURE: Generates technical sign language animation instructions (keyframes).
+   * This can be used to drive a 3D avatar or complex visual system.
+   */
+  async generateSignSequence(text: string, language: string = "English") {
+    const prompt = `You are a Sign Language Animation Expert for the ${language} sign language.
+    Task: Convert the following sentence into a sequence of technical animation instructions for a Virtual Signer.
+    
+    Sentence: "${text}"
+    
+    For each word/concept, provide:
+    1. Gesture name
+    2. Hand shape (e.g., Open Palm, Closed Fist, Index Point)
+    3. Motion description (e.g., Circular clockwise on chest, Straight outward from chin)
+    4. Facial expression intensity (0.0 to 1.0)
+    
+    Return the result as a clean JSON array of objects.`;
+
+    try {
+      const response = await ai.models.generateContent({
+        model: "gemini-1.5-flash",
+        contents: [{ text: prompt }]
+      });
+      return JSON.parse(response.text?.trim() || "[]");
+    } catch (e) {
+      console.error("Pro Sequence Generation Error:", e);
+      return [];
     }
   }
 };
