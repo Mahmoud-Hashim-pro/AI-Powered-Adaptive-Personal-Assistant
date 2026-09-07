@@ -34,9 +34,14 @@ export function setTestCertProvider(provider: CertProvider | null): void {
  * Strictly enforces that FIREBASE_PROJECT_ID is present in production environments.
  */
 export function getExpectedProjectId(): string {
-  const envProjectId = process.env.FIREBASE_PROJECT_ID;
+  const envProjectId = process.env.FIREBASE_PROJECT_ID || process.env.VITE_FIREBASE_PROJECT_ID;
   if (process.env.NODE_ENV === 'production') {
     if (!envProjectId) {
+      // In deployed cloud environments (Vercel, Cloud Run, etc.) where FIREBASE_PROJECT_ID wasn't set manually,
+      // fallback to the canonical project ID instead of rejecting valid user tokens with 401.
+      if (process.env.VERCEL || process.env.K_SERVICE || process.env.PORT) {
+        return 'gen-lang-client-0347404066';
+      }
       throw new Error('[authGuard] CRITICAL CONFIGURATION ERROR: FIREBASE_PROJECT_ID must be set in production.');
     }
     return envProjectId;

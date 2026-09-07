@@ -4,6 +4,9 @@
   "buildCommand": "vite build",
   "outputDirectory": "dist",
   "installCommand": "npm ci",
+  "env": {
+    "FIREBASE_PROJECT_ID": "gen-lang-client-0347404066"
+  },
   "rewrites": [
     {
       "source": "/((?!api/).*)",

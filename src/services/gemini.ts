@@ -18,19 +18,30 @@ import { auth } from "../lib/firebase";
 const splitKeys = (raw?: string): string[] =>
   (raw || '').split(/[,\s]+/).map((k) => k.trim()).filter(Boolean);
 
+export async function getAuthHeaders(forceRefresh = false): Promise<Record<string, string>> {
+  const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+  try {
+    const token = await auth.currentUser?.getIdToken(forceRefresh);
+    if (token) headers['Authorization'] = `Bearer ${token}`;
+  } catch (err) {
+    console.warn('[Cognify] Failed to retrieve Firebase ID token:', err);
+  }
+  return headers;
+}
+
 export function getGeminiKeys(): string[] {
-  // NO env key here on purpose. Vite inlines every VITE_* variable into the
-  // public bundle, so reading one would put the project's key back into the
-  // JS anyone can download. Provider keys live server-side in /api/gemini/*.
-  // Only a key the USER pasted themselves (their own, on their own device) is
-  // honoured, which leaks nothing.
+  // Provider keys live server-side in /api/gemini/*. For in-browser direct fallback
+  // (e.g. static hosting without API routes), honour user-pasted key first, then
+  // optional VITE_GEMINI_API_KEY environment variable.
   const localKey = typeof localStorage !== 'undefined' ? localStorage.getItem('cognify_gemini_api_key') || localStorage.getItem('gemini_api_key') || '' : '';
-  return splitKeys(localKey);
+  const envKey = (typeof import.meta !== 'undefined' && (import.meta as any).env?.VITE_GEMINI_API_KEY) || '';
+  return splitKeys(localKey || envKey);
 }
 
 export function getGroqKeys(): string[] {
-  // Server-only: handled by /api/gemini/* so the key never reaches the browser.
-  return [];
+  const localKey = typeof localStorage !== 'undefined' ? localStorage.getItem('cognify_groq_api_key') || localStorage.getItem('groq_api_key') || '' : '';
+  const envKey = (typeof import.meta !== 'undefined' && (import.meta as any).env?.VITE_GROQ_API_KEY) || '';
+  return splitKeys(localKey || envKey);
 }
 
 export function getNvidiaKeys(): string[] {
@@ -320,9 +331,10 @@ Write a short markdown comparison (bullets are fine) in ${profile.language || 'E
   // 1) Optional backend (skipped on static deploys where backendUp === false).
   if (backendUp !== false) {
     try {
+      const headers = await getAuthHeaders();
       const res = await fetch('/api/gemini/generateBenchmarkComparison', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers,
         body: JSON.stringify({ originalMessage, userMessage, profile })
       });
       const isHtml = res.headers.get('Content-Type')?.includes('text/html');
@@ -380,9 +392,10 @@ export async function generateProactiveInsights(
   // 1) Backend (only if this build actually has one — static deploys skip it)
   if (backendUp !== false) {
     try {
+      const headers = await getAuthHeaders();
       const res = await fetch('/api/gemini/generateProactiveInsights', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers,
         body: JSON.stringify({ profile, recentMessages })
       });
       const isHtml = res.headers.get('Content-Type')?.includes('text/html');
@@ -534,14 +547,15 @@ export async function generateLogicResponse(
   if (backendUp === false) return direct();
 
   try {
+    const headers = await getAuthHeaders();
     const res = await fetch('/api/gemini/generateLogicResponse', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers,
       body: JSON.stringify({ message, profile, moduleName, history })
     });
     const isHtml = res.headers.get('Content-Type')?.includes('text/html');
     if (!res.ok || isHtml) {
-      backendUp = false;
+      if (isHtml || res.status === 404) backendUp = false;
       return direct();
     }
     const data = await res.json();
@@ -847,21 +861,35 @@ export async function* generateAdaptiveResponseStream(
     return;
   }
   try {
-    const idToken = await auth.currentUser?.getIdToken().catch(() => null);
-    const headers: Record<string, string> = { 'Content-Type': 'application/json' };
-    if (idToken) headers['Authorization'] = `Bearer ${idToken}`;
+    let headers = await getAuthHeaders();
 
-    const res = await fetch('/api/gemini/generateAdaptiveResponseStream', {
+    let res = await fetch('/api/gemini/generateAdaptiveResponseStream', {
       method: 'POST',
       headers,
       body: JSON.stringify({ message, profile, history, attachments, studentState }),
       signal
     });
 
-    const isHtml = res.headers.get('Content-Type')?.includes('text/html') || false;
+    // If 401 Unauthorized occurs while logged in, attempt a one-time force refresh of the Firebase token
+    if (res.status === 401 && auth.currentUser) {
+      headers = await getAuthHeaders(true);
+      if (headers['Authorization']) {
+        res = await fetch('/api/gemini/generateAdaptiveResponseStream', {
+          method: 'POST',
+          headers,
+          body: JSON.stringify({ message, profile, history, attachments, studentState }),
+          signal
+        });
+      }
+    }
 
-    if (!res.ok || isHtml) {
-      backendUp = false; // remember: skip the backend next time
+    const isHtml = res.headers.get('Content-Type')?.includes('text/html') || false;
+    const isMissingBackend = isHtml || res.status === 404;
+
+    if (!res.ok || isMissingBackend) {
+      if (isMissingBackend) {
+        backendUp = false; // genuinely no serverless backend on this host
+      }
       const apiKey = geminiPrimaryKey();
       if (apiKey) {
         yield* generateAdaptiveResponseStreamClient(message, profile, history, attachments, apiKey, signal);
@@ -875,19 +903,33 @@ export async function* generateAdaptiveResponseStream(
       }
 
       const isArabic = profile.language === 'Arabic' || profile.language === 'Egyptian Ammiya';
+      const isFrench = profile.language === 'French' || (profile.language as any) === 'fr';
       
-      if (!isHtml) {
-        if (res.status === 503) {
-          toast.error(
-            isArabic 
-              ? "فشل الاتصال: خادم الذكاء الاصطناعي مجهد ومثقل بطلبات الخدمة حالياً (503). يرجى المحاولة مرة أخرى."
-              : "Connection overload: The Google AI service is temporarily down or busy (503). Please try again shortly.",
-            isArabic ? "الخدمة مجهدة حالياً" : "AI Service Overloaded"
-          );
+      if (!isMissingBackend) {
+        if (res.status === 401) {
+          const authErrMsg = isArabic
+            ? "انتهت صلاحية جلسة تسجيل الدخول أو تعذر التحقق من الهوية (رمز 401). يرجى تسجيل الخروج ثم الدخول مجدداً."
+            : isFrench
+            ? "La session d'authentification a expiré ou est invalide (Code 401). Veuillez vous reconnecter."
+            : "Authentication session expired or invalid (Status: 401). Please sign out and sign back in.";
+          toast.error(authErrMsg, isArabic ? "خطأ في المصادقة" : "Authentication Required");
+          yield { text: `⚠️ **${authErrMsg}**`, done: true, error: true };
+          return;
+        } else if (res.status === 503) {
+          const serviceErrMsg = isArabic 
+            ? "فشل الاتصال: مفتاح الذكاء الاصطناعي غير متوفر على السيرفر أو أن الخدمة مجهدة حالياً (503). يمكنك وضع مفتاحك الخاص في الإعدادات."
+            : isFrench
+            ? "Service IA indisponible : Aucune clé API configurée sur le serveur ou service surchargé (503). Vous pouvez renseigner votre clé dans les Paramètres."
+            : "AI service unavailable: No active API key found on server or provider is overloaded (503). You can configure your own key in Settings.";
+          toast.error(serviceErrMsg, isArabic ? "الخدمة غير متوفرة" : "AI Service Unavailable");
+          yield { text: `⚠️ **${serviceErrMsg}**`, done: true, error: true };
+          return;
         } else if (res.status >= 500) {
           toast.error(
             isArabic
               ? `حدث خطأ تقني داخلي في خادم الاتصال (رمز ${res.status}).`
+              : isFrench
+              ? `Une erreur interne est survenue sur le serveur (Code ${res.status}).`
               : `Internal gateway error occurred on the server (Status: ${res.status}).`,
             isArabic ? "خطأ الاتصال مفقود" : "Internal Gateway Fault"
           );
@@ -905,20 +947,20 @@ export async function* generateAdaptiveResponseStream(
       const explanationText = isArabic 
         ? `⚠️ **تنبيه هام حول بيئة التشغيل من كوجنيفي:**
         
-أنت تقوم حاليًا بتصفح التطبيق عبر استضافة ساكنة (Static Hosting مثل Vercel)، وهي لا تدعم الـ Express Backend اللازم لتشغيل وظائف الذكاء الاصطناعي السحابية.
+أنت تقوم حاليًا بتصفح التطبيق عبر استضافة ساكنة بدون خادم خلفي نشط (Static Hosting)، وهي لا تدعم الـ Express Backend اللازم لتشغيل وظائف الذكاء الاصطناعي السحابية.
 
 للحصول على كامل أداء كوجنيفي، من فضلك افتح رابط التشغيل المباشر والكامل للـ Full-Stack على منصة **Cloud Run** من جوجل:
 👉 **[زيارة رابط التشغيل المتكامل والكامل من هنا](${cloudRunUrl})**
 
-*إذا كنت تفضل استخدام Vercel، يمكنك ببساطة وضع مفتاحك الخاص للذكاء الاصطناعي باسم \`VITE_GEMINI_API_KEY\` في إعدادات البيئة بـ Vercel ليعمل معك مباشرة.*`
+*إذا كنت تفضل استخدام Vercel، يمكنك ببساطة وضع مفتاحك الخاص للذكاء الاصطناعي باسم \`VITE_GEMINI_API_KEY\` في إعدادات البيئة بـ Vercel أو في صفحة الإعدادات بالتطبيق ليعمل معك مباشرة.*`
         : `⚠️ **Cognify Deployment Warning:**
 
-You are currently accessing the application on a Static Host (such as Vercel). This environment does not run the backend Express server needed for server-side AI tasks.
+You are currently accessing the application on a Static Host without an active API backend. This environment does not run server-side AI endpoints.
 
 To experience Cognify's full-stack features, please use our fully integrated **Cloud Run** preview URL:
 👉 **[Open the Full-Stack Cloud Run App Here](${cloudRunUrl})**
 
-*If you prefer to host on Vercel, you can configure your own Gemini API key inside Vercel's environment variables as \`VITE_GEMINI_API_KEY\` to enable direct in-browser logic processing.*`;
+*If you prefer to host on Vercel, you can configure your own Gemini API key inside Vercel's environment variables as \`VITE_GEMINI_API_KEY\` or enter it directly in Settings to enable in-browser processing.*`;
 
       yield { text: explanationText, done: true, error: true };
       return;
@@ -997,18 +1039,28 @@ export async function generateAdaptiveResponse(
   if (backendUp === false) return direct();
 
   try {
-    const idToken = await auth.currentUser?.getIdToken().catch(() => null);
-    const headers: Record<string, string> = { 'Content-Type': 'application/json' };
-    if (idToken) headers['Authorization'] = `Bearer ${idToken}`;
+    let headers = await getAuthHeaders();
 
-    const res = await fetch('/api/gemini/generateAdaptiveResponse', {
+    let res = await fetch('/api/gemini/generateAdaptiveResponse', {
       method: 'POST',
       headers,
       body: JSON.stringify({ message, profile, history, attachments, studentState })
     });
+
+    if (res.status === 401 && auth.currentUser) {
+      headers = await getAuthHeaders(true);
+      if (headers['Authorization']) {
+        res = await fetch('/api/gemini/generateAdaptiveResponse', {
+          method: 'POST',
+          headers,
+          body: JSON.stringify({ message, profile, history, attachments, studentState })
+        });
+      }
+    }
+
     const isHtml = res.headers.get('Content-Type')?.includes('text/html');
     if (!res.ok || isHtml) {
-      backendUp = false;
+      if (isHtml || res.status === 404) backendUp = false;
       return direct();
     }
     const data = await res.json();

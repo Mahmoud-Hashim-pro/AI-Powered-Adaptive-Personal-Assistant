@@ -7,15 +7,16 @@ import {
   SubjectType, DifficultyLevel, TeachingMethod, Exercise, ExerciseConfig,
   ExerciseResult, AIAnalysis, SubjectProfile, LearningProfile, VisualAidData,
 } from '../types/learning';
-import { getGeminiKeys, getGroqKeys, getXaiKeys, getNvidiaKeys } from './gemini';
+import { getGeminiKeys, getGroqKeys, getXaiKeys, getNvidiaKeys, getAuthHeaders } from './gemini';
 
 // ── AI Call Helper ─────────────────────────
 async function callAI(prompt: string): Promise<string> {
   // Try backend proxy first
   try {
+    const headers = await getAuthHeaders();
     const res = await fetch('/api/gemini/generateContent', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers,
       body: JSON.stringify({
         parts: [{ text: prompt }],
       }),

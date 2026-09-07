@@ -12,6 +12,8 @@
 // inlineData is Gemini-only and degrades gracefully ("" on failure) exactly as
 // before — every caller's existing fallback path is unchanged.
 
+import { getAuthHeaders } from './gemini';
+
 /** Text helper. The server does Gemini → Groq/xAI failover, so this is just a
  *  text-only `parts` request. "" on failure, same contract as before. */
 async function callText(prompt: string): Promise<string> {
@@ -25,8 +27,7 @@ function rawBase64(data: string): string {
 }
 
 /**
- * Low-level generation call. `parts` is the user content (text and/or
- * inlineData), unchanged from the Gemini shape so no caller had to change.
+ * Common caller for the serverless endpoint at /api/gemini/generateContent.
  *
  * The request now goes to our own serverless function, which holds the provider
  * keys and performs the model + key rotation and the Groq/xAI text fallback
@@ -36,9 +37,10 @@ function rawBase64(data: string): string {
 async function callGemini(parts: any[]): Promise<string> {
   // 1. Try serverless backend
   try {
+    const headers = await getAuthHeaders();
     const res = await fetch("/api/gemini/generateContent", {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers,
       body: JSON.stringify({ parts }),
     });
     if (res.ok && (res.headers.get("Content-Type") || "").includes("application/json")) {
@@ -50,10 +52,8 @@ async function callGemini(parts: any[]): Promise<string> {
   }
 
   // 2. Direct Gemini fallback
-  // NO env key: a VITE_* read would be inlined into the public bundle and leak
-  // the project's key. Only a key the USER pasted themselves is used here — the
-  // shared project keys stay server-side behind /api/gemini/*.
-  const geminiKey = (typeof localStorage !== 'undefined' ? localStorage.getItem('cognify_gemini_api_key') || localStorage.getItem('gemini_api_key') : '') || '';
+  // Honours user-configured key in localStorage, or optional VITE_GEMINI_API_KEY environment variable.
+  const geminiKey = (typeof localStorage !== 'undefined' ? localStorage.getItem('cognify_gemini_api_key') || localStorage.getItem('gemini_api_key') : '') || ((typeof import.meta !== 'undefined' && (import.meta as any).env?.VITE_GEMINI_API_KEY) || '');
   if (geminiKey) {
     try {
       const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${geminiKey}`, {

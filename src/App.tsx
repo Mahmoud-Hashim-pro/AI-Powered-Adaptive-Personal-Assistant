@@ -17,7 +17,7 @@ import { Message, UserProfile, AccessibilityMode, CognitiveLevel } from "./types
 import { auth, db, handleFirestoreError, OperationType, cleanDataForFirestore, clearPreLoginState, logout } from "./lib/firebase";
 import { useAuthState } from "react-firebase-hooks/auth";
 import { doc, setDoc, onSnapshot, getDocFromServer } from "firebase/firestore";
-import { Loader2, Settings, Layers, Menu, Moon, Sun, AlertCircle, RefreshCw, Mail, ArrowLeft, Globe, Check } from "lucide-react";
+import { Loader2, Settings, Layers, Menu, Moon, Sun, AlertCircle, RefreshCw, Mail, ArrowLeft, Globe, Check, Key } from "lucide-react";
 import { toast, ToastContainer } from "./components/Toast";
 import PwaInstallPrompt from "./components/PwaInstallPrompt";
 
@@ -800,6 +800,56 @@ export default function App() {
                         </button>
                       );
                     })}
+                  </div>
+                </div>
+
+                {/* Custom API Key Card */}
+                <div className="p-5 sm:p-6 bg-slate-50 rounded-3xl border border-slate-100 space-y-4">
+                  <div className="flex items-center gap-2 text-primary">
+                    <Key className="w-5 h-5" />
+                    <h3 className="text-sm font-black uppercase tracking-widest">
+                      {localize(profile.language, 'AI Provider & Custom Key', 'مفتاح الذكاء الاصطناعي الخاص')}
+                    </h3>
+                  </div>
+                  <p className="text-[11px] text-slate-500 leading-relaxed font-medium">
+                    {localize(
+                      profile.language,
+                      'If hosting on static platforms (such as Vercel), you can paste your own Google Gemini or Groq API key here. It is stored securely on your local device and enables direct browser AI responses.',
+                      'إذا كنت تتصفح عبر استضافة ساكنة (مثل Vercel)، يمكنك وضع مفتاح Google Gemini أو Groq الخاص بك هنا. يُحفظ المفتاح بأمان محلياً على جهازك لتشغيل الذكاء الاصطناعي مباشرة.'
+                    )}
+                  </p>
+                  <div className="flex flex-col sm:flex-row gap-2">
+                    <input
+                      type="password"
+                      defaultValue={typeof localStorage !== 'undefined' ? (localStorage.getItem('cognify_gemini_api_key') || '') : ''}
+                      id="cognify-custom-gemini-key-input"
+                      placeholder="AIzaSy... (Gemini API Key)"
+                      className="flex-1 px-4 py-2.5 bg-white border border-slate-200 rounded-xl text-xs font-mono focus:outline-none focus:border-primary"
+                    />
+                    <button
+                      onClick={() => {
+                        const input = document.getElementById('cognify-custom-gemini-key-input') as HTMLInputElement | null;
+                        if (input) {
+                          const val = input.value.trim();
+                          if (val) {
+                            localStorage.setItem('cognify_gemini_api_key', val);
+                            toast.success(
+                              localize(profile.language, 'Gemini API Key saved locally!', 'تم حفظ مفتاح Gemini API بنجاح!'),
+                              localize(profile.language, 'Key Saved', 'تم الحفظ')
+                            );
+                          } else {
+                            localStorage.removeItem('cognify_gemini_api_key');
+                            toast.info(
+                              localize(profile.language, 'Custom key removed. Using server default.', 'تم حذف المفتاح الخاص والعودة لافتراضي السيرفر.'),
+                              localize(profile.language, 'Key Removed', 'تم الحذف')
+                            );
+                          }
+                        }
+                      }}
+                      className="px-5 py-2.5 bg-primary text-white font-bold rounded-xl text-xs active:scale-95 transition-all shrink-0"
+                    >
+                      {localize(profile.language, 'Save Key', 'حفظ المفتاح')}
+                    </button>
                   </div>
                 </div>
 

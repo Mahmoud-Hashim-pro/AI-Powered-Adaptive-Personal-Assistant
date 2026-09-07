@@ -21,10 +21,10 @@ import { logTelemetry } from './telemetry.js';
 const splitKeys = (raw?: string): string[] =>
   (raw || '').split(/[,\s]+/).map((k) => k.trim()).filter(Boolean);
 
-export const GEMINI_KEYS = () => splitKeys(process.env.GEMINI_API_KEY);
-export const NVIDIA_KEYS = () => splitKeys(process.env.NVIDIA_API_KEY);
-export const GROQ_KEYS = () => splitKeys(process.env.GROQ_API_KEY);
-export const XAI_KEYS = () => splitKeys(process.env.XAI_API_KEY);
+export const GEMINI_KEYS = () => splitKeys(process.env.GEMINI_API_KEY || process.env.VITE_GEMINI_API_KEY);
+export const NVIDIA_KEYS = () => splitKeys(process.env.NVIDIA_API_KEY || process.env.VITE_NVIDIA_API_KEY);
+export const GROQ_KEYS = () => splitKeys(process.env.GROQ_API_KEY || process.env.VITE_GROQ_API_KEY);
+export const XAI_KEYS = () => splitKeys(process.env.XAI_API_KEY || process.env.VITE_XAI_API_KEY);
 
 /** All OpenAI-compatible fallback / alternate keys (NVIDIA first, then Groq, then xAI). */
 export const FALLBACK_KEYS = () => [...NVIDIA_KEYS(), ...GROQ_KEYS(), ...XAI_KEYS()];
