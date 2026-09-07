@@ -261,7 +261,7 @@ export default function Login() {
               <Sparkles className="w-5 h-5 text-rose-400" />
             </div>
           </div>
-          <span className="text-xl font-black text-white tracking-tight">Cognify</span>
+          <span className="text-xl font-black text-white tracking-tight">Super Human</span>
         </div>
 
         {/* Language Switcher */}
@@ -309,7 +309,7 @@ export default function Login() {
 
                 <p className="text-xs sm:text-sm text-slate-400 font-medium leading-relaxed">
                   {t(
-                    "Cognify doesn't just change its tone — it changes what it says. Pick a path below to get started.",
+                    "Super Human doesn't just change its tone — it changes what it says. Pick a path below to get started.",
                     "كوجنيفاي لا يغير نبرته فقط — بل يغير محتوى ما يقوله تماماً. اختر مساراً بالأسفل للبدء."
                   )}
                 </p>
