@@ -48,6 +48,49 @@ type Status = 'idle' | 'starting-camera' | 'ready' | 'analyzing' | 'camera-denie
 
 const isArabicLang = (lang?: string) => lang === 'Arabic' || lang === 'Egyptian Ammiya';
 
+/**
+ * Sanitizes visual descriptions for both on-screen display and spoken output:
+ * - Strips robotic labels like "**Hazards:** None", "**Visible Text:** None", "**Scene Description:**"
+ * - Converts "Hazards: None" to "No hazards around you." / "مفيش أخطار حواليك."
+ * - Strips all markdown formatting (asterisks, bullet dashes, backticks)
+ * - Removes spoken symbol words (asterisk, star, استريك, نجمة)
+ */
+export function cleanVisionDescription(raw: string, lang: 'ar' | 'en' | 'fr' = 'en'): string {
+  if (!raw) return '';
+  return raw
+    .replace(/\[Signs:.*?\]/g, '')
+    // English robotic boilerplate
+    .replace(/\*\*Hazards:\*\*\s*(None detected[^\n.]*|None[^\n.]*)[.]?/gi, 'No hazards around you.')
+    .replace(/Hazards:\s*(None detected[^\n.]*|None[^\n.]*)[.]?/gi, 'No hazards around you.')
+    .replace(/\*\*Visible Text:\*\*\s*(None[^\n.]*|N\/A[^\n.]*)[.]?/gi, '')
+    .replace(/Visible Text:\s*(None[^\n.]*|N\/A[^\n.]*)[.]?/gi, '')
+    .replace(/\*\*(Scene Description|Description):\*\*/gi, '')
+    .replace(/(Scene Description|Description):/gi, '')
+    // Arabic robotic boilerplate
+    .replace(/\*\*المخاطر:\*\*\s*(لا توجد[^\n.]*|لا يوجد[^\n.]*)[.]?/gi, 'مفيش أخطار حواليك.')
+    .replace(/المخاطر:\s*(لا توجد[^\n.]*|لا يوجد[^\n.]*)[.]?/gi, 'مفيش أخطار حواليك.')
+    .replace(/\*\*النصوص( المكتوبة)?:\*\*\s*(لا توجد[^\n.]*|لا يوجد[^\n.]*)[.]?/gi, '')
+    .replace(/النصوص( المكتوبة)?:\s*(لا توجد[^\n.]*|لا يوجد[^\n.]*)[.]?/gi, '')
+    .replace(/\*\*(وصف المشهد|الوصف):\*\*/gi, '')
+    .replace(/(وصف المشهد|الوصف):/gi, '')
+    // French robotic boilerplate
+    .replace(/\*\*Dangers?:\*\*\s*(Aucun[^\n.]*)[.]?/gi, 'Aucun danger autour de vous.')
+    .replace(/Dangers?:\s*(Aucun[^\n.]*)[.]?/gi, 'Aucun danger autour de vous.')
+    .replace(/\*\*Textes?( visibles?)?:\*\*\s*(Aucun[^\n.]*)[.]?/gi, '')
+    .replace(/Textes?( visibles?)?:\s*(Aucun[^\n.]*)[.]?/gi, '')
+    .replace(/\*\*(Description de la scène|Description):\*\*/gi, '')
+    .replace(/(Description de la scène|Description):/gi, '')
+    // Spoken symbol artifacts
+    .replace(/(?:^|\s+)(asterisk|استريك|نجمة|بوليت)(?=\s+|$)/giu, ' ')
+    // Markdown formatting (*, #, _, `, ~, [], (), <>)
+    .replace(/[*+#_`~\[\]()<>]/g, '')
+    // Bullet dashes
+    .replace(/^\s*[-•]\s+/gm, '')
+    .replace(/\s+-\s+/g, ' ')
+    .replace(/\s{2,}/g, ' ')
+    .trim();
+}
+
 export default function VisionCompanionView({ profile, setProfile }: VisionCompanionViewProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
@@ -285,11 +328,11 @@ export default function VisionCompanionView({ profile, setProfile }: VisionCompa
 
     let prompt = '';
     if (targetLang === 'ar') {
-      prompt = `أنت رفيق بصري لشخص كفيف. صف ما تراه في الكاميرا باللغة العربية بدقة وبشكل طبيعي (الأخطار أولاً إن وجدت، أي نصوص مكتوبة حرفياً، ثم وصف مختصر وعملي للمكان والأسطح والأشياء).${knownContext}`;
+      prompt = `أنت رفيق بشري يتحدث بصوته لشخص كفيف عبر الكاميرا. تحدث فوراً بلغة عربية عامية سهلة ومباشرة كأنك صديق يقف بجانبه وينظر أمامه: ادخل في الموضوع فوراً بدون أي مقدمات أو عناوين أو ماركداون. ابدأ مباشرة بجملة تطمينية سلسة إذا لم تكن هناك مخاطر، مثلاً: "مفيش أخطار حواليك، قدامك..." ثم صف الأشخاص والأشياء والأسطح والنصوص المكتوبة بشكل طبيعي وتلقائي جداً. لا تذكر كلمات مثل "المخاطر" أو "النصوص المكتوبة" أو "وصف المشهد" كعناوين، ولا تستخدم نجوم الماركداون أو الشرطات نهائياً.${knownContext}`;
     } else if (targetLang === 'fr') {
-      prompt = `Vous êtes un compagnon visuel pour une personne aveugle. Décrivez ce que vous voyez dans la caméra en français de manière claire et concise (d'abord les dangers éventuels, les textes visibles textuellement, puis une description pratique de la pièce, des surfaces et des objets).${knownContext}`;
+      prompt = `Vous êtes un compagnon humain chaleureux qui parle directement à voix haute à une personne aveugle à travers sa caméra. Parlez immédiatement dans un langage oral fluide, naturel et bienveillant, comme un ami à ses côtés : allez droit au but sans titres de section ni balises markdown. S'il n'y a aucun danger, commencez directement par rassurer la personne (ex. "Aucun danger autour de vous, devant vous se trouve..."). Décrivez les personnes, objets, surfaces et textes visibles de façon fluide et naturelle. N'utilisez AUCUN astérisque (**), tiret ou en-tête robotique.${knownContext}`;
     } else {
-      prompt = `You are a visual companion for a blind person. Describe what you see in English clearly and concisely (hazards first if any, visible text verbatim, then a brief practical scene description including surfaces and objects).${knownContext}`;
+      prompt = `You are a warm, helpful human companion speaking directly aloud to a blind person through their camera. Speak immediately in fluent, natural conversational prose as if you are a friend standing right beside them: Go straight to the point without any section titles, headings, or robotic boilerplate. If there are no hazards, start directly with reassuring words (e.g. "No hazards around you. Directly in front of you is..."). Describe people, objects, surfaces, and any visible text smoothly and naturally. Do NOT use markdown asterisks (**), bullet dashes, or labels like "Hazards:", "Visible Text:", or "Scene Description:".${knownContext}`;
     }
 
     try {
@@ -305,13 +348,14 @@ export default function VisionCompanionView({ profile, setProfile }: VisionCompa
       );
 
       if (!isMountedRef.current) return;
-      setLastDescription(result);
+      const cleaned = cleanVisionDescription(result, targetLang);
+      setLastDescription(cleaned);
       setStatus('ready');
-      setAnnounce(result);
+      setAnnounce(cleaned);
 
       // Automatically extract and record spatial physical objects for this user
       if (profile?.uid) {
-        const extracted = extractSpatialObjectsFromVision(result, profile.uid, targetLang);
+        const extracted = extractSpatialObjectsFromVision(cleaned, profile.uid, targetLang);
         if (extracted.length > 0) {
           recordObservedSpatialObjects(profile.uid, extracted).then(() => {
             if (isMountedRef.current && profile.uid) {
@@ -329,12 +373,12 @@ export default function VisionCompanionView({ profile, setProfile }: VisionCompa
 
       const voiceLang = targetLang === 'ar' ? 'Arabic' : targetLang === 'fr' ? 'French' : 'English';
       setTimeout(() => {
-        speak(result, voiceLang, {
+        speak(cleaned, voiceLang, {
           onError: () => {
             // Chrome speech resume recovery
             if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
               window.speechSynthesis.resume();
-              setTimeout(() => speak(result, voiceLang), 120);
+              setTimeout(() => speak(cleaned, voiceLang), 120);
             }
           },
         });
@@ -434,20 +478,14 @@ export default function VisionCompanionView({ profile, setProfile }: VisionCompa
 
   const replaySpeech = () => {
     if (!lastDescription) return;
-    // Previously this checked isSpeaking() (window.speechSynthesis.speaking)
-    // to decide whether to cancel or start speech — but that flag is known
-    // to get stuck `true` in Chrome/Edge well after speech has actually
-    // finished (especially right after the rapid cancel()/resume() dance in
-    // describeScene's auto-speak). Once stuck, every tap of "Repeat aloud"
-    // just called cancelSpeech() on nothing and returned — the button
-    // appeared completely dead. A button explicitly labeled "repeat" should
-    // always just replay on every press, so drop the toggle entirely.
     cancelSpeech();
     if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
       window.speechSynthesis.resume();
     }
+    const voiceLang = companionLang === 'ar' ? 'Arabic' : companionLang === 'fr' ? 'French' : 'English';
+    const cleaned = cleanVisionDescription(lastDescription, companionLang);
     setTimeout(() => {
-      speak(lastDescription, companionLang === 'ar' ? 'Arabic' : 'English');
+      speak(cleaned, voiceLang);
     }, 60);
   };
 

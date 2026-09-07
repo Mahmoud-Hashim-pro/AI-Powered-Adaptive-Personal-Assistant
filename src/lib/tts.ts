@@ -23,11 +23,41 @@ const LANG_MAP: Record<string, string> = {
   ar: "ar-SA",
 };
 
-/** Strip sign markers and markdown noise so speech sounds clean. */
+/** Strip sign markers, markdown noise, robotic vision headers, and symbol artifacts so speech sounds natural. */
 export function cleanForSpeech(text: string): string {
+  if (!text) return "";
   return text
+    // Strip sign avatar markers
     .replace(/\[Signs:.*?\]/g, "")
-    .replace(/[*+#_`~\[\]()]/g, "")
+    // Clean robotic boilerplate headers in English
+    .replace(/\*\*Hazards:\*\*\s*(None detected[^\n.]*|None[^\n.]*)[.]?/gi, "No hazards around you.")
+    .replace(/Hazards:\s*(None detected[^\n.]*|None[^\n.]*)[.]?/gi, "No hazards around you.")
+    .replace(/\*\*Visible Text:\*\*\s*(None[^\n.]*|N\/A[^\n.]*)[.]?/gi, "")
+    .replace(/Visible Text:\s*(None[^\n.]*|N\/A[^\n.]*)[.]?/gi, "")
+    .replace(/\*\*(Scene Description|Description):\*\*/gi, "")
+    .replace(/(Scene Description|Description):/gi, "")
+    // Clean robotic boilerplate headers in Arabic
+    .replace(/\*\*المخاطر:\*\*\s*(لا توجد[^\n.]*|لا يوجد[^\n.]*)[.]?/gi, "مفيش أخطار حواليك.")
+    .replace(/المخاطر:\s*(لا توجد[^\n.]*|لا يوجد[^\n.]*)[.]?/gi, "مفيش أخطار حواليك.")
+    .replace(/\*\*النصوص( المكتوبة)?:\*\*\s*(لا توجد[^\n.]*|لا يوجد[^\n.]*)[.]?/gi, "")
+    .replace(/النصوص( المكتوبة)?:\s*(لا توجد[^\n.]*|لا يوجد[^\n.]*)[.]?/gi, "")
+    .replace(/\*\*(وصف المشهد|الوصف):\*\*/gi, "")
+    .replace(/(وصف المشهد|الوصف):/gi, "")
+    // Clean robotic boilerplate headers in French
+    .replace(/\*\*Dangers?:\*\*\s*(Aucun[^\n.]*)[.]?/gi, "Aucun danger autour de vous.")
+    .replace(/Dangers?:\s*(Aucun[^\n.]*)[.]?/gi, "Aucun danger autour de vous.")
+    .replace(/\*\*Textes?( visibles?)?:\*\*\s*(Aucun[^\n.]*)[.]?/gi, "")
+    .replace(/Textes?( visibles?)?:\s*(Aucun[^\n.]*)[.]?/gi, "")
+    .replace(/\*\*(Description de la scène|Description):\*\*/gi, "")
+    .replace(/(Description de la scène|Description):/gi, "")
+    // Strip spoken symbol words (asterisk / star / استريك / نجمة)
+    .replace(/(?:^|\s+)(asterisk|استريك|نجمة|بوليت)(?=\s+|$)/giu, " ")
+    // Strip markdown formatting symbols (*, #, _, `, ~, [], (), <>)
+    .replace(/[*+#_`~\[\]()<>]/g, "")
+    // Strip bullet dashes and clean spacing
+    .replace(/^\s*[-•]\s+/gm, "")
+    .replace(/\s+-\s+/g, " ")
+    .replace(/\s{2,}/g, " ")
     .trim();
 }
 

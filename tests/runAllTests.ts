@@ -30,6 +30,7 @@ import {
   generateDatabaseAuditReport,
 } from '../src/lib/databaseHub.js';
 import { resolveClientIp, logSecurityEvent } from '../src/lib/securityTracker.js';
+import { cleanForSpeech } from '../src/lib/tts.js';
 
 let totalPassed = 0;
 let totalFailed = 0;
@@ -681,6 +682,32 @@ async function run() {
     const report = generateDatabaseAuditReport(mockUsers as any, [testRecord]);
     assert(report.includes('Frankfurt (europe-west1)'), 'Audit report contains correct database region');
     assert(report.includes('Active User Accounts: 1') || report.includes('Registered Users: 1'), 'Audit report contains accurate user counts');
+  }
+
+  // 16. Natural Conversational Spoken Audio & Anti-Boilerplate Sanitization
+  console.log('\n[16] Natural Spoken Audio & Anti-Boilerplate Sanitization');
+  {
+    const rawEnglish = '**Hazards:** None detected in your immediate sitting space. **Visible Text:** None. **Scene Description:** - A man in a blue polo shirt is seated directly in front of the camera.';
+    const cleanedEnglish = cleanForSpeech(rawEnglish);
+    assert(!cleanedEnglish.includes('**'), 'Strips all markdown asterisks');
+    assert(!cleanedEnglish.includes('Hazards:'), 'Strips robotic Hazards: header');
+    assert(!cleanedEnglish.includes('Visible Text:'), 'Strips robotic Visible Text: header');
+    assert(!cleanedEnglish.includes('Scene Description:'), 'Strips robotic Scene Description: header');
+    assert(cleanedEnglish.startsWith('No hazards around you.'), 'Replaces Hazards: None with natural reassuring sentence');
+    assert(cleanedEnglish.includes('A man in a blue polo shirt'), 'Preserves actual scene description');
+
+    const rawArabic = '**المخاطر:** لا توجد أخطار واضحة في محيطك. **النصوص المكتوبة:** لا توجد. **وصف المشهد:** - شخص جالس يرتدي قميصاً أزرق.';
+    const cleanedArabic = cleanForSpeech(rawArabic);
+    assert(!cleanedArabic.includes('**'), 'Strips markdown asterisks from Arabic');
+    assert(!cleanedArabic.includes('المخاطر:'), 'Strips Arabic المخاطر: header');
+    assert(!cleanedArabic.includes('النصوص'), 'Strips Arabic النصوص header');
+    assert(!cleanedArabic.includes('وصف المشهد'), 'Strips Arabic وصف المشهد header');
+    assert(cleanedArabic.startsWith('مفيش أخطار حواليك.'), 'Replaces Arabic hazards none with friendly Egyptian greeting');
+    assert(cleanedArabic.includes('شخص جالس'), 'Preserves actual Arabic content');
+
+    const symbolArtifacts = 'Notice * this word and asterisk symbol نجمة and استريك';
+    const cleanedSymbols = cleanForSpeech(symbolArtifacts);
+    assert(!cleanedSymbols.includes('asterisk') && !cleanedSymbols.includes('استريك') && !cleanedSymbols.includes('نجمة'), 'Strips spoken symbol words like asterisk/استريك/نجمة');
   }
 
   console.log(`\n========================================`);
