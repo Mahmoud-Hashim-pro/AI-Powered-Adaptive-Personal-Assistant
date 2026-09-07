@@ -45,13 +45,14 @@ const StudentMemoryPage = lazy(() => import("./components/StudentMemoryPage"));
 const InstitutionCohortHub = lazy(() => import("./components/InstitutionCohortHub"));
 const CognitiveGym = lazy(() => import("./components/CognitiveGym"));
 const IqAssessmentModal = lazy(() => import("./components/IqAssessmentModal"));
+const FrenchTravelVoiceAssistant = lazy(() => import("./components/FrenchTravelVoiceAssistant"));
 
 /** Every hash route the app answers to — the single source of truth for both the
  *  initial read on mount and the popstate handler, so they can't drift apart. */
 const VALID_VIEWS = [
   'chat', 'learning', 'profile', 'settings', 'video', 'disability',
   'admin', 'goals', 'gpa', 'analytics', 'planner', 'support', 'memory',
-  'institution', 'gym', 'iq',
+  'institution', 'gym', 'iq', 'france',
 ] as const;
 
 export default function App() {
@@ -671,6 +672,15 @@ export default function App() {
             profile={activeProfile}
             onMenuClick={() => setIsMobileMenuOpen(true)}
             onOpenIqModal={() => setIsIqModalOpen(true)}
+            onNavigateBack={() => navigateTo(homeViewFor(profile))}
+          />
+        );
+
+      case 'france':
+        return (
+          <FrenchTravelVoiceAssistant
+            profile={activeProfile}
+            onMenuClick={() => setIsMobileMenuOpen(true)}
             onNavigateBack={() => navigateTo(homeViewFor(profile))}
           />
         );

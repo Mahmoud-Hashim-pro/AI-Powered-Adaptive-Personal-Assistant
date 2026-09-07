@@ -107,10 +107,10 @@ const SOUNDBOARD_DATA: Record<'essentials' | 'needs' | 'social' | 'emergencies',
 // MAIN COMPONENT
 // ──────────────────────────────────────────────────────────────────────────
 export default function LiveCaptions({ language = 'en-US', onClose }: LiveCaptionsProps) {
-  // `language` is a BCP-47 code here (e.g. "ar-EG"), NOT a language name — so
-  // localize()/isRTL (which compare against "Arabic") don't work on it. Derive
-  // the Arabic flag directly from the code.
-  const isAr = language.toLowerCase().startsWith('ar');
+  const [activeLang, setActiveLang] = useState<string>(language);
+  // Derive language flags directly from the BCP-47 code (e.g. "fr-FR", "ar-EG")
+  const isAr = activeLang.toLowerCase().startsWith('ar');
+  const isFr = activeLang.toLowerCase().startsWith('fr');
   const dir = isAr ? 'rtl' : 'ltr';
   // ── Core listening state
   const [isListening, setIsListening] = useState(false);
@@ -344,7 +344,7 @@ export default function LiveCaptions({ language = 'en-US', onClose }: LiveCaptio
     const recognition = recognitionRef.current;
     recognition.continuous = true;
     recognition.interimResults = true;
-    recognition.lang = language;
+    recognition.lang = activeLang;
 
     recognition.onstart = () => { setIsListening(true); setError(null); startAudioLevelTracking(); };
     recognition.onerror = (event: any) => {
@@ -395,7 +395,7 @@ export default function LiveCaptions({ language = 'en-US', onClose }: LiveCaptio
     };
     // NOTE: `transcript` intentionally NOT a dep — recreating the recognizer
     // mid-sentence dropped words. We read the latest via transcriptRef instead.
-  }, [language, speechProfile, pauseThreshold]);
+  }, [activeLang, speechProfile, pauseThreshold]);
 
   const toggleListening = () => {
     if (isListening) {
@@ -808,6 +808,28 @@ export default function LiveCaptions({ language = 'en-US', onClose }: LiveCaptio
           </div>
 
           <div className="flex items-center gap-3">
+            {/* Listening Language Switcher */}
+            <div className="flex items-center bg-white/5 border border-white/10 rounded-xl p-0.5">
+              {[
+                { code: 'fr-FR', label: '🇫🇷 FR', title: 'French (France)' },
+                { code: 'en-US', label: '🇬🇧 EN', title: 'English (US)' },
+                { code: 'ar-EG', label: '🇪🇬 AR', title: 'Arabic (Egypt)' },
+              ].map(({ code, label, title }) => (
+                <button
+                  key={code}
+                  onClick={() => setActiveLang(code)}
+                  title={title}
+                  className={`text-[10px] font-bold px-2 py-1 rounded-lg transition-all ${
+                    activeLang === code
+                      ? 'bg-primary text-white shadow-sm font-black'
+                      : 'text-neutral-400 hover:text-white'
+                  }`}
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
+
             {/* Repeat Mode Toggle */}
             <button
               onClick={() => setRepeatModeOn(prev => !prev)}

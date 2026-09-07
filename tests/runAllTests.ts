@@ -21,6 +21,7 @@ import {
   querySpatialMemory,
 } from '../src/lib/spatialMemoryEngine.js';
 import { localize } from '../src/lib/translations.js';
+import { canAccessView } from '../src/lib/access.js';
 
 let totalPassed = 0;
 let totalFailed = 0;
@@ -579,8 +580,17 @@ async function run() {
       frenchPersona.includes('French in → reply in natural, fluent, idiomatic French'),
       'Persona includes French language mirroring instruction'
     );
+    assert(frenchPersona.includes('FRANCE TRAVEL & SPOKEN FRENCH ASSISTANCE'), 'Persona includes France Travel & Spoken French assistance section');
+    assert(frenchPersona.includes('Bonjour Madame'), 'Persona includes essential French politeness guidance');
+    assert(frenchPersona.includes('phonetic pronunciation guide'), 'Persona includes phonetic pronunciation directives for traveler');
     assert(frenchPersona.includes('COGNIFY SPATIAL MEMORY'), 'Persona includes Spatial Memory context block');
     assert(frenchPersona.includes('Télécommande: on table du salon'), 'Persona formats remembered physical objects in spatial block');
+
+    // Access control verification for France Travel Voice
+    const normalUser = { uid: 'u1', accountPath: 'Normal' as const };
+    const a11yUser = { uid: 'u2', accountPath: 'Special Needs' as const, accessibilityMode: 'Visual' };
+    assert(canAccessView(normalUser as any, 'france', false) === true, 'Normal user can access France Travel Voice');
+    assert(canAccessView(a11yUser as any, 'france', false) === true, 'Accessibility user can access France Travel Voice');
   }
 
   console.log(`\n========================================`);

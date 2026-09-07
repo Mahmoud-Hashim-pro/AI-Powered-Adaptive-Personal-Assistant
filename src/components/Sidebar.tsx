@@ -162,6 +162,13 @@ export default function Sidebar({ profile, setProfile, currentView, setCurrentVi
           {localize(profile.language, 'Cognitive Gym', 'الجيم المعرفي')}
         </button>
 
+        {/* France Travel & Voice Assistant */}
+        <button onClick={() => setCurrentView('france')} className={navBtn(currentView === 'france') + ' relative'}>
+          <span className="w-[18px] h-[18px] shrink-0 flex items-center justify-center text-sm leading-none">🇫🇷</span>
+          {localize(profile.language, 'France Travel Voice', 'مساعد السفر لفرنسا')}
+          <span className="ms-auto text-[10px] font-bold text-amber-500 bg-amber-500/10 px-[7px] py-[3px] rounded-full">FR</span>
+        </button>
+
         {/* Phase 7: Institution Cohorts Hub */}
         {(isAdmin || profile.isOrgManager === true) && (
           <button onClick={() => setCurrentView('institution')} className={navBtn(currentView === 'institution')}>

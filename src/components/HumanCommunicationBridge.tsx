@@ -32,11 +32,17 @@ export default function HumanCommunicationBridge({ profile }: HumanCommunication
     { text: "لو سمحت اكتب لي على الشاشة", icon: "📝" },
     { text: "أنا أستخدم لغة الإشارة للتواصل", icon: "🤟" },
   ] : isFrench ? [
-    { text: "J'ai une question s'il vous plaît", icon: "🙋‍♂️" },
-    { text: "Pouvez-vous répéter le point ?", icon: "🔄" },
-    { text: "Pouvez-vous expliquer plus simplement ?", icon: "💡" },
-    { text: "Très bien compris, merci !", icon: "✅" },
+    { text: "Bonjour, s'il vous plaît !", icon: "👋" },
+    { text: "Pouvez-vous m'aider s'il vous plaît ?", icon: "🤝" },
+    { text: "Où se trouve la station de métro / gare ?", icon: "🚇" },
+    { text: "Un café et un croissant s'il vous plaît", icon: "🥐" },
+    { text: "L'addition, s'il vous plaît", icon: "🧾" },
+    { text: "Combien ça coûte ?", icon: "💶" },
+    { text: "Pouvez-vous parler plus lentement ?", icon: "🗣️" },
+    { text: "Je ne parle pas très bien français", icon: "🇫🇷" },
+    { text: "Où est la pharmacie la plus proche ?", icon: "💊" },
     { text: "Veuillez écrire sur l'écran s'il vous plaît", icon: "📝" },
+    { text: "Merci beaucoup, bonne journée !", icon: "✨" },
     { text: "J'utilise la langue des signes", icon: "🤟" },
   ] : [
     { text: "I have a question please", icon: "🙋‍♂️" },
@@ -109,7 +115,7 @@ export default function HumanCommunicationBridge({ profile }: HumanCommunication
       const rec = new SpeechRec();
       rec.continuous = true;
       rec.interimResults = true;
-      rec.lang = voiceDialect === 'Egyptian Ammiya' ? 'ar-EG' : voiceDialect === 'Arabic' ? 'ar-SA' : 'en-US';
+      rec.lang = voiceDialect === 'Egyptian Ammiya' ? 'ar-EG' : voiceDialect === 'Arabic' ? 'ar-SA' : voiceDialect === 'French' ? 'fr-FR' : 'en-US';
 
       rec.onresult = (event: any) => {
         let transcript = '';
@@ -171,6 +177,7 @@ export default function HumanCommunicationBridge({ profile }: HumanCommunication
             { id: 'Egyptian Ammiya', label: '🇪🇬 مصري' },
             { id: 'Arabic', label: '🇸🇦 فصحى' },
             { id: 'English', label: '🇺🇸 English' },
+            { id: 'French', label: '🇫🇷 Français' },
           ].map(({ id, label }) => (
             <button
               key={id}

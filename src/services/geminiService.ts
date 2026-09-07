@@ -234,4 +234,8 @@ Reply with just the sign, or [NO_SIGN]. Nothing else.`;
     if (!out) throw new Error("Failed to decode Euphonia raw audio");
     return out;
   },
+
+  async generateRawText(prompt: string): Promise<string> {
+    return (await callText(prompt)) || "";
+  },
 };

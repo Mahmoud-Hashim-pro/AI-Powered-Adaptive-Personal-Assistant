@@ -32,9 +32,8 @@ export function cleanForSpeech(text: string): string {
 }
 
 // Voices whose names hint at higher-quality / neural engines — preferred when
-// available (esp. important for Arabic, where the default device voice is often
-// poor). Browser TTS is still device-limited; true high quality needs cloud TTS.
-const QUALITY_HINTS = /google|microsoft|natural|neural|online|enhanced|premium|siri|hoda|salma|naayf|laila/i;
+// available (esp. important for Arabic & French, where device voices vary widely).
+const QUALITY_HINTS = /google|microsoft|natural|neural|online|enhanced|premium|siri|hoda|salma|naayf|laila|thomas|amelie|amélie|hortense|julie|paul|denise|audrey|aurelie|aurélie|siwis|virginie|alain/i;
 
 function rank(v: SpeechSynthesisVoice, lower: string): number {
   const exact = v.lang.toLowerCase() === lower;
@@ -75,6 +74,14 @@ export function buildUtterance(
   const clean = cleanForSpeech(text);
   const utterance = new SpeechSynthesisUtterance(clean);
   const hasArabic = /[؀-ۿ]/.test(clean);
+  const isFrench =
+    language === "French" ||
+    language === "fr" ||
+    language === "fr-FR" ||
+    (!hasArabic && (
+      /[àâäéèêëîïôöùûüçœæ]/i.test(clean) ||
+      /\b(bonjour|bonsoir|merci|s'il vous plaît|sil vous plait|croissant|gare|métro|metro|madame|monsieur|oui|non|pardon|excusez-moi|combien|où est|ou est|je voudrais|l'addition|chambre|hôtel|pharmacie)\b/i.test(clean)
+    ));
 
   if (hasArabic) {
     const isEgyptian =
@@ -95,6 +102,18 @@ export function buildUtterance(
       utterance.lang = "ar-EG";
     }
     utterance.rate = 0.92;
+    utterance.pitch = 1.0;
+  } else if (isFrench) {
+    const defaultLang = "fr-FR";
+    utterance.lang = defaultLang;
+    const voice = pickVoice(defaultLang) || pickVoice("fr");
+    if (voice) {
+      utterance.voice = voice;
+      utterance.lang = voice.lang;
+    } else {
+      utterance.lang = "fr-FR";
+    }
+    utterance.rate = 0.95; // Fluid, natural French speed
     utterance.pitch = 1.0;
   } else {
     const defaultLang = LANG_MAP[language || "English"] || "en-US";
@@ -122,6 +141,13 @@ export function hasArabicVoice(): boolean {
   if (typeof window === "undefined" || !("speechSynthesis" in window)) return false;
   const voices = cachedVoices.length ? cachedVoices : window.speechSynthesis.getVoices();
   return voices.some((v) => v.lang.toLowerCase().startsWith("ar"));
+}
+
+/** True if the platform's speechSynthesis has at least one French voice installed. */
+export function hasFrenchVoice(): boolean {
+  if (typeof window === "undefined" || !("speechSynthesis" in window)) return false;
+  const voices = cachedVoices.length ? cachedVoices : window.speechSynthesis.getVoices();
+  return voices.some((v) => v.lang.toLowerCase().startsWith("fr"));
 }
 
 /**

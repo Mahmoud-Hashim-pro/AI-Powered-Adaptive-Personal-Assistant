@@ -20,6 +20,7 @@ import { getSpatialObjects } from "../lib/spatialMemoryEngine";
 
 // Three.js is heavy — only load the sign avatar when a deaf-mode user opens it.
 const SignAvatar3D = React.lazy(() => import("./SignAvatar3D"));
+const FrenchTravelVoiceAssistant = React.lazy(() => import("./FrenchTravelVoiceAssistant"));
 
 // Strip markdown/sign markers and split into words for the sign avatar.
 const wordsForSigning = (text: string): string[] =>
@@ -133,6 +134,14 @@ const ChatInterface = React.forwardRef<ChatInterfaceRef, ChatInterfaceProps>(({ 
   const [showInsights, setShowInsights] = useState(false);
   const [insights, setInsights] = useState<string | null>(null);
   const [isGeneratingInsights, setIsGeneratingInsights] = useState(false);
+
+  // Dictation Language for STT: One-click toggle between French (France), English (US), and Arabic (Egypt)
+  const [dictationLang, setDictationLang] = useState<'fr-FR' | 'en-US' | 'ar-EG'>(() => {
+    if (profile.language === 'French') return 'fr-FR';
+    if (profile.language === 'Arabic' || profile.language === 'Egyptian Ammiya') return 'ar-EG';
+    return 'en-US';
+  });
+  const [showFrenchTravelAssistant, setShowFrenchTravelAssistant] = useState(false);
 
   const { studentState, recordAnswer } = useStudentState(profile?.uid, profile?.level);
   const [activePedagogyStyle, setActivePedagogyStyle] = useState<PedagogyStyle>(
@@ -429,7 +438,7 @@ const ChatInterface = React.forwardRef<ChatInterfaceRef, ChatInterfaceProps>(({ 
         'Spanish': 'es-ES',
         'German': 'de-DE'
       };
-      recognition.lang = langMap[profile.language || 'English'] || 'en-US';
+      recognition.lang = dictationLang || langMap[profile.language || 'English'] || 'en-US';
 
       const isAr = profile.language === 'Arabic' || profile.language === 'Egyptian Ammiya';
 
@@ -495,7 +504,7 @@ const ChatInterface = React.forwardRef<ChatInterfaceRef, ChatInterfaceProps>(({ 
       shouldListenRef.current = false;
       try { recognitionRef.current?.stop(); } catch { /* ignore */ }
     };
-  }, [profile.language]);
+  }, [profile.language, dictationLang]);
 
   const toggleListening = () => {
     if (!recognitionRef.current) {
@@ -1760,29 +1769,70 @@ const ChatInterface = React.forwardRef<ChatInterfaceRef, ChatInterfaceProps>(({ 
             )}
           </AnimatePresence>
           
-          {/* Phase 3: Adaptive Pedagogy Style Bar */}
-          <div className="flex items-center gap-1.5 mb-2 overflow-x-auto custom-scrollbar py-0.5 px-1">
-            <span className="text-[10px] text-text-muted font-bold uppercase shrink-0">
-              {localize(profile.language, 'Pedagogy:', 'أسلوب الشرح:')}
-            </span>
-            {PEDAGOGY_STYLES.map((st) => {
-              const isSelected = activePedagogyStyle === st.id;
-              return (
-                <button
-                  key={st.id}
-                  type="button"
-                  onClick={() => handleSelectPedagogy(st.id)}
-                  className={`px-2.5 py-1 rounded-lg text-[11px] font-semibold transition-all shrink-0 flex items-center gap-1 border ${
-                    isSelected
-                      ? 'bg-primary/15 text-primary border-primary/30 shadow-xs ring-1 ring-primary/20'
-                      : 'bg-surface-2 text-text-muted border-border/60 hover:bg-surface-3 hover:text-text-main'
-                  }`}
-                  title={localize(profile.language, st.descriptionEn, st.descriptionAr)}
-                >
-                  <span>{localize(profile.language, st.labelEn, st.labelAr)}</span>
-                </button>
-              );
-            })}
+          {/* Top Bar: Adaptive Pedagogy Style Bar + France Travel Voice & Mic Language */}
+          <div className="flex items-center justify-between gap-2 mb-2 overflow-x-auto custom-scrollbar py-0.5 px-1">
+            <div className="flex items-center gap-1.5 shrink-0">
+              <span className="text-[10px] text-text-muted font-bold uppercase shrink-0">
+                {localize(profile.language, 'Pedagogy:', 'أسلوب الشرح:')}
+              </span>
+              {PEDAGOGY_STYLES.map((st) => {
+                const isSelected = activePedagogyStyle === st.id;
+                return (
+                  <button
+                    key={st.id}
+                    type="button"
+                    onClick={() => handleSelectPedagogy(st.id)}
+                    className={`px-2.5 py-1 rounded-lg text-[11px] font-semibold transition-all shrink-0 flex items-center gap-1 border ${
+                      isSelected
+                        ? 'bg-primary/15 text-primary border-primary/30 shadow-xs ring-1 ring-primary/20'
+                        : 'bg-surface-2 text-text-muted border-border/60 hover:bg-surface-3 hover:text-text-main'
+                    }`}
+                    title={localize(profile.language, st.descriptionEn, st.descriptionAr)}
+                  >
+                    <span>{localize(profile.language, st.labelEn, st.labelAr)}</span>
+                  </button>
+                );
+              })}
+            </div>
+
+            {/* France Travel Assistant & Mic Language Switcher */}
+            <div className="flex items-center gap-2 shrink-0 ms-auto">
+              <button
+                type="button"
+                onClick={() => setShowFrenchTravelAssistant(true)}
+                className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[11px] font-bold bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/25 hover:bg-amber-500/20 active:scale-95 transition-all shrink-0"
+                title={localize(profile.language, 'Open France Travel & Voice Assistant', 'فتح دليل ومترجم فرنسا الصوتي')}
+              >
+                <span>🇫🇷</span>
+                <span className="hidden sm:inline">{localize(profile.language, 'France Guide', 'دليل فرنسا')}</span>
+              </button>
+
+              <div className="flex items-center bg-surface-2 border border-border rounded-lg p-0.5" title="Speech Recognition Language">
+                {[
+                  { code: 'fr-FR' as const, label: '🇫🇷 FR' },
+                  { code: 'en-US' as const, label: '🇬🇧 EN' },
+                  { code: 'ar-EG' as const, label: '🇪🇬 AR' },
+                ].map(({ code, label }) => (
+                  <button
+                    key={code}
+                    type="button"
+                    onClick={() => {
+                      setDictationLang(code);
+                      if (isListening && recognitionRef.current) {
+                        try { recognitionRef.current.lang = code; } catch {}
+                      }
+                    }}
+                    className={`text-[10px] font-black px-2 py-0.5 rounded-md transition-all ${
+                      dictationLang === code
+                        ? 'bg-primary text-white shadow-xs'
+                        : 'text-text-muted hover:text-text-main'
+                    }`}
+                  >
+                    {label}
+                  </button>
+                ))}
+              </div>
+            </div>
           </div>
 
           <form onSubmit={handleSubmit} className="relative group">
@@ -1885,6 +1935,20 @@ const ChatInterface = React.forwardRef<ChatInterfaceRef, ChatInterfaceProps>(({ 
           </p>
         </div>
       </div>
+
+      {/* French Travel & Voice Assistant Modal */}
+      {showFrenchTravelAssistant && (
+        <div className="fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-sm flex items-center justify-center p-2 sm:p-4 md:p-6 animate-fadeIn">
+          <div className="bg-bg-card rounded-3xl border border-border shadow-2xl w-full max-w-5xl h-[92vh] flex flex-col overflow-hidden relative">
+            <React.Suspense fallback={<div className="p-8 text-center text-text-muted">Chargement...</div>}>
+              <FrenchTravelVoiceAssistant
+                profile={profile}
+                onNavigateBack={() => setShowFrenchTravelAssistant(false)}
+              />
+            </React.Suspense>
+          </div>
+        </div>
+      )}
     </div>
   );
 });
