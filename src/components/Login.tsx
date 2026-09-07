@@ -4,8 +4,8 @@ import { sendPasswordResetEmail, getRedirectResult } from 'firebase/auth';
 import { motion, AnimatePresence } from 'motion/react';
 import { 
   Chrome, Mail, Lock, AlertCircle, Loader2, Eye, EyeOff, 
-  ArrowLeft, Brain, GraduationCap, Heart, ArrowRight, 
-  Sparkles, Tag, Check, ChevronDown, LockKeyhole, Globe
+  ArrowLeft, ArrowRight, 
+  Sparkles, Tag, ChevronDown, LockKeyhole, Globe
 } from 'lucide-react';
 
 type AccountPath = 'Normal' | 'Graduation Project' | 'Special Needs';
@@ -309,13 +309,13 @@ export default function Login() {
 
                 <p className="text-xs sm:text-sm text-slate-400 font-medium leading-relaxed">
                   {t(
-                    "Cognify doesn't just change its tone — it changes what it says. Pick a path on the right and watch the answer on the left update.",
-                    "كوجنيفاي لا يغير نبرته فقط — بل يغير محتوى ما يقوله تماماً. اختر مساراً على اليمين وشاهد الإجابة تتحدث فوراً على اليسار."
+                    "Cognify doesn't just change its tone — it changes what it says. Pick a path below to get started.",
+                    "كوجنيفاي لا يغير نبرته فقط — بل يغير محتوى ما يقوله تماماً. اختر مساراً بالأسفل للبدء."
                   )}
                 </p>
               </div>
 
-              {/* Main Interactive Comparison Card */}
+              {/* Main Path Selection Card */}
               <div className="bg-[#121524]/95 border border-slate-800/80 rounded-[28px] overflow-hidden shadow-2xl backdrop-blur-2xl">
                 {/* Top Tri-Color Strip */}
                 <div className="grid grid-cols-3 h-1 w-full">
@@ -324,311 +324,211 @@ export default function Login() {
                   <div className="bg-rose-500" />
                 </div>
 
-                <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 lg:gap-8 p-5 sm:p-7 md:p-8">
-                  {/* Left Column: LIVE PREVIEW */}
-                  <div className="lg:col-span-7 flex flex-col justify-between space-y-5">
-                    <div className="space-y-3">
-                      <div className="text-[10px] font-black uppercase tracking-widest text-slate-400">
-                        {t("LIVE PREVIEW", "معاينة حية")}
-                      </div>
-
-                      {/* Preview Chat Box */}
-                      <div className="bg-[#181C2E]/90 border border-slate-700/40 rounded-2xl p-5 space-y-4 shadow-inner">
-                        {/* User Question */}
-                        <div className="flex items-center gap-3">
-                          <div className="w-7 h-7 rounded-full bg-indigo-600/30 border border-indigo-500/40 flex items-center justify-center shrink-0">
-                            <div className="w-2.5 h-2.5 rounded-full bg-indigo-400" />
-                          </div>
-                          <span className="text-sm font-semibold text-slate-200">
-                            {t('"What is recursion?"', '"يعني إيه Recursion؟"')}
-                          </span>
-                        </div>
-
-                        <div className="h-px bg-slate-700/40 w-full" />
-
-                        {/* AI Adaptive Answer */}
-                        <div className="flex items-start gap-3">
-                          <div className={`w-7 h-7 rounded-full flex items-center justify-center shrink-0 mt-0.5 transition-colors ${
-                            accountPath === 'Normal'
-                              ? 'bg-amber-500/20 text-amber-400 border border-amber-500/40'
-                              : accountPath === 'Graduation Project'
-                              ? 'bg-teal-500/20 text-teal-400 border border-teal-500/40'
-                              : 'bg-rose-500/20 text-rose-400 border border-rose-500/40'
-                          }`}>
-                            {accountPath === 'Normal' && <Brain className="w-3.5 h-3.5" />}
-                            {accountPath === 'Graduation Project' && <GraduationCap className="w-3.5 h-3.5" />}
-                            {accountPath === 'Special Needs' && <Heart className="w-3.5 h-3.5" />}
-                          </div>
-
-                          <div className="space-y-2.5 flex-1">
-                            <AnimatePresence mode="wait">
-                              <motion.p
-                                key={accountPath}
-                                initial={{ opacity: 0, y: 4 }}
-                                animate={{ opacity: 1, y: 0 }}
-                                exit={{ opacity: 0, y: -4 }}
-                                transition={{ duration: 0.18 }}
-                                className="text-xs sm:text-sm text-slate-200 font-normal leading-relaxed"
-                              >
-                                {accountPath === 'Normal' && t(
-                                  "Recursion is when a function calls itself to solve a smaller piece of the same problem, stopping once it hits a simple base case.",
-                                  "الريكيرجن هو لما الدالة بتنادي نفسها عشان تحل جزء أصغر من نفس المشكلة، وبتتوقف أول ما توصل لحالة الأساس البسيطة (Base Case)."
-                                )}
-                                {accountPath === 'Graduation Project' && t(
-                                  "In your Computer Science coursework, recursion appears in tree traversal and divide-and-conquer algorithms — a function calling itself on a smaller subproblem until it reaches a base case, then unwinding results back up the call stack.",
-                                  "في دراستك الجامعية لعلوم الحاسب، الريكيرجن بيظهر في الـ Tree Traversal وخوارزميات فرق تسد — الدالة بتنادي نفسها على مسألة فرعية أصغر لحد ما توصل للـ Base Case وتفك الـ Call Stack."
-                                )}
-                                {accountPath === 'Special Needs' && t(
-                                  "Recursion means a function calls itself. Each call solves a smaller piece. It stops at a simple case. Then it builds the answer back up.",
-                                  "الريكيرجن يعني دالة بتنادي نفسها. كل مرة بتحل حتة صغيرة. بتقف عند خطوة بسيطة. وبعدين تجمع الإجابة كلها تاني."
-                                )}
-                              </motion.p>
-                            </AnimatePresence>
-                          </div>
-                        </div>
-                      </div>
+                <div className="max-w-xl mx-auto space-y-5 p-5 sm:p-7 md:p-8">
+                  {/* CHOOSE YOUR PATH */}
+                  <div className="space-y-3.5">
+                    <div>
+                      <h2 className="text-lg sm:text-xl font-black text-white tracking-tight">
+                        {t("Choose your path", "اختر مسارك")}
+                      </h2>
+                      <p className="text-[11px] text-slate-400 font-medium mt-0.5">
+                        {t("You can change this later in settings.", "يمكنك تغيير هذا المسار لاحقاً من الإعدادات.")}
+                      </p>
                     </div>
 
-                    {/* Bottom Calibration Indicator */}
-                    <div className="space-y-2.5">
-                      <div className="flex items-center gap-2 text-xs font-bold">
-                        <span className={`inline-flex items-center gap-1 ${
-                          accountPath === 'Normal' ? 'text-amber-400' : accountPath === 'Graduation Project' ? 'text-teal-400' : 'text-rose-400'
+                    {/* Vertical Path Selector Timeline */}
+                    <div className="space-y-3 relative">
+                      {/* Connecting Line */}
+                      <div className={`absolute top-4 bottom-4 ${isRtl ? 'right-[11px]' : 'left-[11px]'} w-0.5 bg-slate-800 z-0`} />
+
+                      {/* 1. Normal */}
+                      <div
+                        onClick={() => setAccountPath('Normal')}
+                        className={`relative z-10 flex items-start gap-3.5 p-3.5 rounded-2xl cursor-pointer border transition-all ${
+                          accountPath === 'Normal'
+                            ? 'bg-amber-500/10 border-amber-500/40 shadow-md shadow-amber-500/5'
+                            : 'bg-transparent border-transparent hover:bg-slate-800/40'
+                        }`}
+                      >
+                        <div className={`w-6 h-6 rounded-full flex items-center justify-center shrink-0 mt-0.5 transition-colors ${
+                          accountPath === 'Normal'
+                            ? 'bg-amber-400 text-slate-950 ring-4 ring-amber-400/20'
+                            : 'bg-slate-800 text-slate-400 border border-slate-700'
                         }`}>
-                          <Check className="w-3.5 h-3.5" /> {t("Adapts:", "يتكيف:")}
-                        </span>
-                        <span className="text-slate-400 font-medium text-xs">
-                          {accountPath === 'Normal' && t("tone & depth only", "النبرة والعمق المعرفي فقط")}
-                          {accountPath === 'Graduation Project' && t("anchored to your faculty context", "مرتبط بمقررات وسياق كليتك")}
-                          {accountPath === 'Special Needs' && t("short sentences, one idea at a time", "جمل قصيرة ومباشرة، فكرة واحدة في كل مرة")}
-                        </span>
-                      </div>
-
-                      {/* Accessibility Preview Chips */}
-                      {accountPath === 'Special Needs' && (
-                        <div className="flex flex-wrap gap-1.5 pt-0.5">
-                          {(['Visual', 'Hearing', 'Motor', 'Speech'] as DisabilityOption[]).map((mode) => (
-                            <span
-                              key={mode}
-                              className="px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-slate-800/80 border border-slate-700/60 text-slate-300"
-                            >
-                              {mode === 'Visual' && t('Visual', 'بصري')}
-                              {mode === 'Hearing' && t('Hearing', 'سمعي')}
-                              {mode === 'Motor' && t('Motor', 'حركي')}
-                              {mode === 'Speech' && t('Speech', 'نطق')}
-                            </span>
-                          ))}
+                          <div className={`w-2 h-2 rounded-full ${accountPath === 'Normal' ? 'bg-slate-950' : 'bg-slate-600'}`} />
                         </div>
-                      )}
-                    </div>
-                  </div>
-
-                  {/* Right Column: CHOOSE YOUR PATH */}
-                  <div className="lg:col-span-5 flex flex-col justify-between space-y-5 lg:border-s lg:border-slate-800/80 lg:ps-7">
-                    <div className="space-y-3.5">
-                      <div>
-                        <h2 className="text-lg sm:text-xl font-black text-white tracking-tight">
-                          {t("Choose your path", "اختر مسارك")}
-                        </h2>
-                        <p className="text-[11px] text-slate-400 font-medium mt-0.5">
-                          {t("You can change this later in settings.", "يمكنك تغيير هذا المسار لاحقاً من الإعدادات.")}
-                        </p>
+                        <div>
+                          <div className={`text-sm font-black transition-colors ${accountPath === 'Normal' ? 'text-amber-300' : 'text-slate-200'}`}>
+                            {t("Normal", "عادي")}
+                          </div>
+                          <div className="text-xs text-slate-400 font-medium mt-0.5">
+                            {t("Standard cognitive evaluation path.", "المسار القياسي للتقييم المعرفي العام.")}
+                          </div>
+                        </div>
                       </div>
 
-                      {/* Vertical Path Selector Timeline */}
-                      <div className="space-y-3 relative">
-                        {/* Connecting Line */}
-                        <div className={`absolute top-4 bottom-4 ${isRtl ? 'right-[11px]' : 'left-[11px]'} w-0.5 bg-slate-800 z-0`} />
-
-                        {/* 1. Normal */}
-                        <div
-                          onClick={() => setAccountPath('Normal')}
-                          className={`relative z-10 flex items-start gap-3.5 p-3.5 rounded-2xl cursor-pointer border transition-all ${
-                            accountPath === 'Normal'
-                              ? 'bg-amber-500/10 border-amber-500/40 shadow-md shadow-amber-500/5'
-                              : 'bg-transparent border-transparent hover:bg-slate-800/40'
-                          }`}
-                        >
+                      {/* 2. Graduation Project */}
+                      <div
+                        onClick={() => setAccountPath('Graduation Project')}
+                        className={`relative z-10 flex flex-col gap-3 p-3.5 rounded-2xl cursor-pointer border transition-all ${
+                          accountPath === 'Graduation Project'
+                            ? 'bg-teal-500/10 border-teal-500/40 shadow-md shadow-teal-500/5'
+                            : 'bg-transparent border-transparent hover:bg-slate-800/40'
+                        }`}
+                      >
+                        <div className="flex items-start gap-3.5">
                           <div className={`w-6 h-6 rounded-full flex items-center justify-center shrink-0 mt-0.5 transition-colors ${
-                            accountPath === 'Normal'
-                              ? 'bg-amber-400 text-slate-950 ring-4 ring-amber-400/20'
+                            accountPath === 'Graduation Project'
+                              ? 'bg-teal-400 text-slate-950 ring-4 ring-teal-400/20'
                               : 'bg-slate-800 text-slate-400 border border-slate-700'
                           }`}>
-                            <div className={`w-2 h-2 rounded-full ${accountPath === 'Normal' ? 'bg-slate-950' : 'bg-slate-600'}`} />
+                            <div className={`w-2 h-2 rounded-full ${accountPath === 'Graduation Project' ? 'bg-slate-950' : 'bg-slate-600'}`} />
                           </div>
                           <div>
-                            <div className={`text-sm font-black transition-colors ${accountPath === 'Normal' ? 'text-amber-300' : 'text-slate-200'}`}>
-                              {t("Normal", "عادي")}
+                            <div className={`text-sm font-black transition-colors ${accountPath === 'Graduation Project' ? 'text-teal-300' : 'text-slate-200'}`}>
+                              {t("Graduation Project", "مشروع تخرج")}
                             </div>
                             <div className="text-xs text-slate-400 font-medium mt-0.5">
-                              {t("Standard cognitive evaluation path.", "المسار القياسي للتقييم المعرفي العام.")}
+                              {t("Anchored to your faculty & department.", "مرتبط بكليتك وتخصصك ومقرراتك الأكاديمية.")}
                             </div>
                           </div>
                         </div>
 
-                        {/* 2. Graduation Project */}
-                        <div
-                          onClick={() => setAccountPath('Graduation Project')}
-                          className={`relative z-10 flex flex-col gap-3 p-3.5 rounded-2xl cursor-pointer border transition-all ${
-                            accountPath === 'Graduation Project'
-                              ? 'bg-teal-500/10 border-teal-500/40 shadow-md shadow-teal-500/5'
-                              : 'bg-transparent border-transparent hover:bg-slate-800/40'
-                          }`}
-                        >
-                          <div className="flex items-start gap-3.5">
-                            <div className={`w-6 h-6 rounded-full flex items-center justify-center shrink-0 mt-0.5 transition-colors ${
-                              accountPath === 'Graduation Project'
-                                ? 'bg-teal-400 text-slate-950 ring-4 ring-teal-400/20'
-                                : 'bg-slate-800 text-slate-400 border border-slate-700'
-                            }`}>
-                              <div className={`w-2 h-2 rounded-full ${accountPath === 'Graduation Project' ? 'bg-slate-950' : 'bg-slate-600'}`} />
-                            </div>
-                            <div>
-                              <div className={`text-sm font-black transition-colors ${accountPath === 'Graduation Project' ? 'text-teal-300' : 'text-slate-200'}`}>
-                                {t("Graduation Project", "مشروع تخرج")}
-                              </div>
-                              <div className="text-xs text-slate-400 font-medium mt-0.5">
-                                {t("Anchored to your faculty & department.", "مرتبط بكليتك وتخصصك ومقرراتك الأكاديمية.")}
-                              </div>
-                            </div>
-                          </div>
-
-                          {/* Graduation Inputs */}
-                          {accountPath === 'Graduation Project' && (
-                            <motion.div
-                              initial={{ opacity: 0, height: 0 }}
-                              animate={{ opacity: 1, height: 'auto' }}
-                              className="space-y-3 pt-2 ps-9"
-                              onClick={(e) => e.stopPropagation()}
-                            >
-                              <div className="space-y-1">
-                                <label className="text-[10px] font-black uppercase tracking-wider text-slate-400">
-                                  {t("Faculty / College", "الكلية / الجامعة")}
-                                </label>
-                                <div className="relative">
-                                  <select
-                                    value={faculty}
-                                    onChange={(e) => setFaculty(e.target.value)}
-                                    className="w-full bg-[#181C2E] border border-slate-700 text-slate-200 text-xs font-semibold rounded-xl px-3.5 py-2.5 outline-none appearance-none cursor-pointer focus:border-teal-400"
-                                  >
-                                    <option value="" disabled>{t("Select your faculty", "اختر كليتك")}</option>
-                                    <option value="Computers and Artificial Intelligence">Computers and Artificial Intelligence</option>
-                                    <option value="Engineering">Engineering</option>
-                                    <option value="Medicine">Medicine</option>
-                                    <option value="Pharmacy">Pharmacy</option>
-                                    <option value="Science">Science</option>
-                                    <option value="Commerce">Commerce</option>
-                                    <option value="Arts">Arts</option>
-                                    <option value="Law">Law</option>
-                                    <option value="Other">Other</option>
-                                  </select>
-                                  <ChevronDown className={`w-3.5 h-3.5 text-slate-400 absolute top-1/2 -translate-y-1/2 pointer-events-none ${isRtl ? 'left-3' : 'right-3'}`} />
-                                </div>
-                              </div>
-
-                              <div className="space-y-1">
-                                <label className="text-[10px] font-black uppercase tracking-wider text-slate-400">
-                                  {t("University email", "البريد الجامعي")}
-                                </label>
-                                <input
-                                  type="email"
-                                  placeholder="id@university.edu.eg"
-                                  value={universityEmail}
-                                  onChange={(e) => setUniversityEmail(e.target.value)}
-                                  className="w-full bg-[#181C2E] border border-slate-700 text-slate-200 placeholder-slate-500 text-xs font-semibold rounded-xl px-3.5 py-2.5 outline-none focus:border-teal-400"
-                                />
-                                {universityEmail.length > 0 && !validateUniversityEmail(universityEmail) && (
-                                  <p className="text-[10px] text-rose-400 font-medium">
-                                    {t("Enter a valid university email (.edu)", "اكتب بريداً جامعياً ينتهي بـ .edu")}
-                                  </p>
-                                )}
-                              </div>
-                            </motion.div>
-                          )}
-                        </div>
-
-                        {/* 3. Special Needs */}
-                        <div
-                          onClick={() => setAccountPath('Special Needs')}
-                          className={`relative z-10 flex flex-col gap-3 p-3.5 rounded-2xl cursor-pointer border transition-all ${
-                            accountPath === 'Special Needs'
-                              ? 'bg-rose-500/10 border-rose-500/40 shadow-md shadow-rose-500/5'
-                              : 'bg-transparent border-transparent hover:bg-slate-800/40'
-                          }`}
-                        >
-                          <div className="flex items-start gap-3.5">
-                            <div className={`w-6 h-6 rounded-full flex items-center justify-center shrink-0 mt-0.5 transition-colors ${
-                              accountPath === 'Special Needs'
-                                ? 'bg-rose-500 text-white ring-4 ring-rose-500/20'
-                                : 'bg-slate-800 text-slate-400 border border-slate-700'
-                            }`}>
-                              <div className={`w-2 h-2 rounded-full ${accountPath === 'Special Needs' ? 'bg-white' : 'bg-slate-600'}`} />
-                            </div>
-                            <div>
-                              <div className={`text-sm font-black transition-colors ${accountPath === 'Special Needs' ? 'text-rose-300' : 'text-slate-200'}`}>
-                                {t("Special Needs", "احتياجات خاصة (ذوي الهمم)")}
-                              </div>
-                              <div className="text-xs text-slate-400 font-medium mt-0.5">
-                                {t("Customized accessible experience.", "تجربة مخصصة سهلة الوصول مع دعم لغة الإشارة والتتبع.")}
-                              </div>
-                            </div>
-                          </div>
-
-                          {/* Focus Chips */}
-                          {accountPath === 'Special Needs' && (
-                            <motion.div
-                              initial={{ opacity: 0, height: 0 }}
-                              animate={{ opacity: 1, height: 'auto' }}
-                              className="space-y-2 pt-2 ps-9"
-                              onClick={(e) => e.stopPropagation()}
-                            >
-                              <label className="text-[10px] font-black uppercase tracking-wider text-slate-400 block">
-                                {t("Accessibility focus", "نوع الإتاحة المطلوب")}
+                        {/* Graduation Inputs */}
+                        {accountPath === 'Graduation Project' && (
+                          <motion.div
+                            initial={{ opacity: 0, height: 0 }}
+                            animate={{ opacity: 1, height: 'auto' }}
+                            className="space-y-3 pt-2 ps-9"
+                            onClick={(e) => e.stopPropagation()}
+                          >
+                            <div className="space-y-1">
+                              <label className="text-[10px] font-black uppercase tracking-wider text-slate-400">
+                                {t("Faculty / College", "الكلية / الجامعة")}
                               </label>
-                              <div className="flex flex-wrap gap-1.5">
-                                {(['Visual', 'Hearing', 'Motor', 'Speech', 'Cognitive'] as DisabilityOption[]).map((dis) => (
-                                  <button
-                                    key={dis}
-                                    type="button"
-                                    onClick={() => setSelectedDisability(dis)}
-                                    className={`px-3 py-1 rounded-full text-xs font-bold transition-all ${
-                                      selectedDisability === dis
-                                        ? 'bg-rose-500 text-white shadow-md shadow-rose-500/20'
-                                        : 'bg-slate-800/80 border border-slate-700/80 text-slate-300 hover:border-slate-500'
-                                    }`}
-                                  >
-                                    {dis === 'Visual' && t('Visual', 'بصري')}
-                                    {dis === 'Hearing' && t('Hearing', 'سمعي')}
-                                    {dis === 'Motor' && t('Motor', 'حركي')}
-                                    {dis === 'Speech' && t('Speech', 'نطق')}
-                                    {dis === 'Cognitive' && t('Cognitive', 'إدراكي')}
-                                  </button>
-                                ))}
+                              <div className="relative">
+                                <select
+                                  value={faculty}
+                                  onChange={(e) => setFaculty(e.target.value)}
+                                  className="w-full bg-[#181C2E] border border-slate-700 text-slate-200 text-xs font-semibold rounded-xl px-3.5 py-2.5 outline-none appearance-none cursor-pointer focus:border-teal-400"
+                                >
+                                  <option value="" disabled>{t("Select your faculty", "اختر كليتك")}</option>
+                                  <option value="Computers and Artificial Intelligence">Computers and Artificial Intelligence</option>
+                                  <option value="Engineering">Engineering</option>
+                                  <option value="Medicine">Medicine</option>
+                                  <option value="Pharmacy">Pharmacy</option>
+                                  <option value="Science">Science</option>
+                                  <option value="Commerce">Commerce</option>
+                                  <option value="Arts">Arts</option>
+                                  <option value="Law">Law</option>
+                                  <option value="Other">Other</option>
+                                </select>
+                                <ChevronDown className={`w-3.5 h-3.5 text-slate-400 absolute top-1/2 -translate-y-1/2 pointer-events-none ${isRtl ? 'left-3' : 'right-3'}`} />
                               </div>
-                            </motion.div>
-                          )}
+                            </div>
+
+                            <div className="space-y-1">
+                              <label className="text-[10px] font-black uppercase tracking-wider text-slate-400">
+                                {t("University email", "البريد الجامعي")}
+                              </label>
+                              <input
+                                type="email"
+                                placeholder="id@university.edu.eg"
+                                value={universityEmail}
+                                onChange={(e) => setUniversityEmail(e.target.value)}
+                                className="w-full bg-[#181C2E] border border-slate-700 text-slate-200 placeholder-slate-500 text-xs font-semibold rounded-xl px-3.5 py-2.5 outline-none focus:border-teal-400"
+                              />
+                              {universityEmail.length > 0 && !validateUniversityEmail(universityEmail) && (
+                                <p className="text-[10px] text-rose-400 font-medium">
+                                  {t("Enter a valid university email (.edu)", "اكتب بريداً جامعياً ينتهي بـ .edu")}
+                                </p>
+                              )}
+                            </div>
+                          </motion.div>
+                        )}
+                      </div>
+
+                      {/* 3. Special Needs */}
+                      <div
+                        onClick={() => setAccountPath('Special Needs')}
+                        className={`relative z-10 flex flex-col gap-3 p-3.5 rounded-2xl cursor-pointer border transition-all ${
+                          accountPath === 'Special Needs'
+                            ? 'bg-rose-500/10 border-rose-500/40 shadow-md shadow-rose-500/5'
+                            : 'bg-transparent border-transparent hover:bg-slate-800/40'
+                        }`}
+                      >
+                        <div className="flex items-start gap-3.5">
+                          <div className={`w-6 h-6 rounded-full flex items-center justify-center shrink-0 mt-0.5 transition-colors ${
+                            accountPath === 'Special Needs'
+                              ? 'bg-rose-500 text-white ring-4 ring-rose-500/20'
+                              : 'bg-slate-800 text-slate-400 border border-slate-700'
+                          }`}>
+                            <div className={`w-2 h-2 rounded-full ${accountPath === 'Special Needs' ? 'bg-white' : 'bg-slate-600'}`} />
+                          </div>
+                          <div>
+                            <div className={`text-sm font-black transition-colors ${accountPath === 'Special Needs' ? 'text-rose-300' : 'text-slate-200'}`}>
+                              {t("Special Needs", "احتياجات خاصة (ذوي الهمم)")}
+                            </div>
+                            <div className="text-xs text-slate-400 font-medium mt-0.5">
+                              {t("Customized accessible experience.", "تجربة مخصصة سهلة الوصول مع دعم لغة الإشارة والتتبع.")}
+                            </div>
+                          </div>
                         </div>
+
+                        {/* Focus Chips */}
+                        {accountPath === 'Special Needs' && (
+                          <motion.div
+                            initial={{ opacity: 0, height: 0 }}
+                            animate={{ opacity: 1, height: 'auto' }}
+                            className="space-y-2 pt-2 ps-9"
+                            onClick={(e) => e.stopPropagation()}
+                          >
+                            <label className="text-[10px] font-black uppercase tracking-wider text-slate-400 block">
+                              {t("Accessibility focus", "نوع الإتاحة المطلوب")}
+                            </label>
+                            <div className="flex flex-wrap gap-1.5">
+                              {(['Visual', 'Hearing', 'Motor', 'Speech', 'Cognitive'] as DisabilityOption[]).map((dis) => (
+                                <button
+                                  key={dis}
+                                  type="button"
+                                  onClick={() => setSelectedDisability(dis)}
+                                  className={`px-3 py-1 rounded-full text-xs font-bold transition-all ${
+                                    selectedDisability === dis
+                                      ? 'bg-rose-500 text-white shadow-md shadow-rose-500/20'
+                                      : 'bg-slate-800/80 border border-slate-700/80 text-slate-300 hover:border-slate-500'
+                                  }`}
+                                >
+                                  {dis === 'Visual' && t('Visual', 'بصري')}
+                                  {dis === 'Hearing' && t('Hearing', 'سمعي')}
+                                  {dis === 'Motor' && t('Motor', 'حركي')}
+                                  {dis === 'Speech' && t('Speech', 'نطق')}
+                                  {dis === 'Cognitive' && t('Cognitive', 'إدراكي')}
+                                </button>
+                              ))}
+                            </div>
+                          </motion.div>
+                        )}
                       </div>
                     </div>
-
-                    {/* Continue Button */}
-                    <button
-                      onClick={handleContinuePath}
-                      disabled={
-                        accountPath === 'Graduation Project' && (!faculty || !validateUniversityEmail(universityEmail))
-                      }
-                      className={`w-full py-4 px-6 rounded-2xl font-black text-sm uppercase tracking-wider flex items-center justify-center gap-2 shadow-xl transition-all active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed ${
-                        accountPath === 'Normal'
-                          ? 'bg-gradient-to-r from-amber-400 via-amber-500 to-rose-400 text-slate-950 hover:opacity-95 shadow-amber-500/20'
-                          : accountPath === 'Graduation Project'
-                          ? 'bg-gradient-to-r from-teal-400 to-emerald-400 text-slate-950 hover:opacity-95 shadow-teal-500/20'
-                          : 'bg-gradient-to-r from-rose-500 via-pink-500 to-rose-600 text-white hover:opacity-95 shadow-rose-500/25'
-                      }`}
-                    >
-                      <span>{t("Continue", "المتابعة")}</span>
-                      <ArrowRight className={`w-4 h-4 ${isRtl ? 'rotate-180' : ''}`} />
-                    </button>
                   </div>
+
+                  {/* Continue Button */}
+                  <button
+                    onClick={handleContinuePath}
+                    disabled={
+                      accountPath === 'Graduation Project' && (!faculty || !validateUniversityEmail(universityEmail))
+                    }
+                    className={`w-full py-4 px-6 rounded-2xl font-black text-sm uppercase tracking-wider flex items-center justify-center gap-2 shadow-xl transition-all active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed ${
+                      accountPath === 'Normal'
+                        ? 'bg-gradient-to-r from-amber-400 via-amber-500 to-rose-400 text-slate-950 hover:opacity-95 shadow-amber-500/20'
+                        : accountPath === 'Graduation Project'
+                        ? 'bg-gradient-to-r from-teal-400 to-emerald-400 text-slate-950 hover:opacity-95 shadow-teal-500/20'
+                        : 'bg-gradient-to-r from-rose-500 via-pink-500 to-rose-600 text-white hover:opacity-95 shadow-rose-500/25'
+                    }`}
+                  >
+                    <span>{t("Continue", "المتابعة")}</span>
+                    <ArrowRight className={`w-4 h-4 ${isRtl ? 'rotate-180' : ''}`} />
+                  </button>
                 </div>
               </div>
             </motion.div>
