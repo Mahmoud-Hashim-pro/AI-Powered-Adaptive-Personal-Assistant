@@ -6,6 +6,7 @@ import dotenv from "dotenv";
 dotenv.config();
 
 import { geminiRouter } from "./server/routes";
+import securityAuditHandler from "./api/telemetry/securityAudit";
 
 async function startServer() {
   const app = express();
@@ -22,6 +23,11 @@ async function startServer() {
   // API Health Check
   app.get("/api/health", (req, res) => {
     res.json({ status: "ok" });
+  });
+
+  // Telemetry: Security Audit IP extraction
+  app.all("/api/telemetry/securityAudit", (req, res) => {
+    return securityAuditHandler(req, res);
   });
 
   app.use("/api/gemini", geminiRouter);

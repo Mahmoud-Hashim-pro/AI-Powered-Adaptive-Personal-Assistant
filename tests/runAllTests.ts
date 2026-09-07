@@ -22,6 +22,14 @@ import {
 } from '../src/lib/spatialMemoryEngine.js';
 import { localize } from '../src/lib/translations.js';
 import { canAccessView } from '../src/lib/access.js';
+import {
+  getDatabaseHealth,
+  getCollectionStats,
+  generateFullSystemBackupJson,
+  cleanStaleSessionsAndCache,
+  generateDatabaseAuditReport,
+} from '../src/lib/databaseHub.js';
+import { resolveClientIp, logSecurityEvent } from '../src/lib/securityTracker.js';
 
 let totalPassed = 0;
 let totalFailed = 0;
@@ -628,6 +636,51 @@ async function run() {
     const profileFrench = { level: 'Advanced', language: 'French', accessibilityMode: 'None' };
     const personaFrench = buildPersona(profileFrench as any);
     assert(personaFrench.includes('Configured Language: French'), 'Persona includes Configured Language for French');
+  }
+
+  // 15. Super Admin Database Hub & Security Inspect Tracker
+  console.log('\n[15] Super Admin Database Hub & Security Inspect Tracker');
+  {
+    // Database Health check
+    const health = await getDatabaseHealth();
+    assert(health.region === 'Frankfurt (europe-west1)', 'Database health returns Frankfurt europe-west1 region');
+    assert(health.latencyMs >= 0, 'Database health returns non-negative latency in ms');
+    assert(health.status === 'healthy' || health.status === 'degraded', 'Database health returns valid status');
+
+    // Collection stats estimation
+    const stats = getCollectionStats(100);
+    assert(stats.usersCount === 100, 'Collection stats tracks 100 users correctly');
+    assert(stats.estimatedChatThreads > 100, 'Estimated chat threads scales proportionally with users');
+    assert(stats.estimatedStorageKb > 0, 'Estimated storage footprint calculated');
+
+    // Full system backup generation
+    const mockUsers: any[] = [{ uid: 'test-1', email: 'test@cognify.app', points: 150 }];
+    const backup = generateFullSystemBackupJson(mockUsers as any, []);
+    assert(backup.filename.includes('backup-') && backup.filename.endsWith('.json'), 'Backup generates timestamped filename');
+    assert((backup.jsonString || '').includes('Cognify'), 'Backup contains system metadata header');
+    assert((backup.jsonString || '').includes('test@cognify.app'), 'Backup contains user records');
+
+    // Stale session & cache cleaner
+    const cleanup = await cleanStaleSessionsAndCache();
+    assert(typeof cleanup.cleanedKeys === 'number' && cleanup.cleanedKeys >= 0, 'Clean stale sessions runs safely');
+
+    // Security tracker IP resolution
+    const ip = await resolveClientIp();
+    assert(typeof ip === 'string' && ip.length > 0, 'resolveClientIp returns valid non-empty string');
+
+    // Security event logger
+    const testRecord = await logSecurityEvent(
+      { uid: 'admin-1', email: 'admin@cognify.app', isAdmin: true },
+      'devtools_inspect_shortcut',
+      'Test F12 inspect event'
+    );
+    assert(testRecord !== null && testRecord.role === 'Admin', 'logSecurityEvent properly logs admin security record');
+    assert(testRecord?.eventType === 'devtools_inspect_shortcut', 'logSecurityEvent correctly records event type');
+
+    // Markdown audit report
+    const report = generateDatabaseAuditReport(mockUsers as any, [testRecord]);
+    assert(report.includes('Frankfurt (europe-west1)'), 'Audit report contains correct database region');
+    assert(report.includes('Active User Accounts: 1') || report.includes('Registered Users: 1'), 'Audit report contains accurate user counts');
   }
 
   console.log(`\n========================================`);

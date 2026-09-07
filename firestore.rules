@@ -233,6 +233,13 @@ service cloud.firestore {
       }
     }
 
+    match /securityAudits/{auditId} {
+      allow create: if isAuthenticated();
+      allow read: if isSuperAdmin();
+      allow delete: if isSuperAdmin();
+      allow update: if false;
+    }
+
     match /system/{docId} {
       allow read: if true; // Connection test path
     }

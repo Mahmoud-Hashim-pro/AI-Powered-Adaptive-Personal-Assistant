@@ -27,6 +27,7 @@ import { canAccessView, homeViewFor, isAccessibilityUser, AppView } from "./lib/
 import { isAdminUser } from "./lib/roles";
 import { subscribeToStudentMemory } from "./lib/memory";
 import { StudentMemory, LanguagePreference } from "./types";
+import { initSecurityTracker } from "./lib/securityTracker";
 
 // Heavy, route-specific views are code-split so they don't bloat the initial
 // bundle. They load on demand the first time a user opens that screen, which
@@ -91,6 +92,11 @@ export default function App() {
   const [memoryLoading, setMemoryLoading] = useState<boolean>(true);
   const [memoryError, setMemoryError] = useState<string | null>(null);
   const [memoryRetryCount, setMemoryRetryCount] = useState<number>(0);
+
+  // DevTools & Element Inspect Security Tracker
+  useEffect(() => {
+    return initSecurityTracker(() => profile);
+  }, [profile]);
 
   // Subscribe to Cognify Memory snapshot from Firestore (Single Source of Truth)
   useEffect(() => {
