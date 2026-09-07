@@ -17,8 +17,8 @@ import { Message, UserProfile, AccessibilityMode, CognitiveLevel } from "./types
 import { auth, db, handleFirestoreError, OperationType, cleanDataForFirestore, clearPreLoginState, logout } from "./lib/firebase";
 import { useAuthState } from "react-firebase-hooks/auth";
 import { doc, setDoc, onSnapshot, getDocFromServer } from "firebase/firestore";
-import { Loader2, Settings, Layers, Menu, Moon, Sun, AlertCircle, RefreshCw, Mail, ArrowLeft } from "lucide-react";
-import { ToastContainer } from "./components/Toast";
+import { Loader2, Settings, Layers, Menu, Moon, Sun, AlertCircle, RefreshCw, Mail, ArrowLeft, Globe, Check } from "lucide-react";
+import { toast, ToastContainer } from "./components/Toast";
 import PwaInstallPrompt from "./components/PwaInstallPrompt";
 
 import { isRTL, getTranslation, localize } from "./lib/translations";
@@ -26,7 +26,7 @@ import { canAccessSection } from "./lib/academics";
 import { canAccessView, homeViewFor, isAccessibilityUser, AppView } from "./lib/access";
 import { isAdminUser } from "./lib/roles";
 import { subscribeToStudentMemory } from "./lib/memory";
-import { StudentMemory } from "./types";
+import { StudentMemory, LanguagePreference } from "./types";
 
 // Heavy, route-specific views are code-split so they don't bloat the initial
 // bundle. They load on demand the first time a user opens that screen, which
@@ -128,12 +128,25 @@ export default function App() {
 
   const direction = isRTL(profile?.language) ? 'rtl' : 'ltr';
 
-  // Keep the document root's dir/lang in sync so screen readers pronounce Arabic
-  // with the right rules and portalled/native UI (dialogs, popovers) inherits RTL.
+  // Keep the document root's dir/lang in sync so screen readers pronounce correctly
+  // and portalled/native UI (dialogs, popovers) inherits proper RTL/LTR and language semantics.
   useEffect(() => {
     document.documentElement.dir = direction;
-    document.documentElement.lang = direction === 'rtl' ? 'ar' : 'en';
-  }, [direction]);
+    const langMap: Record<string, string> = {
+      'French': 'fr',
+      'Arabic': 'ar',
+      'Egyptian Ammiya': 'ar',
+      'Spanish': 'es',
+      'German': 'de',
+      'Italian': 'it',
+      'Portuguese': 'pt',
+      'Russian': 'ru',
+      'Chinese': 'zh',
+      'Japanese': 'ja',
+      'English': 'en',
+    };
+    document.documentElement.lang = (profile?.language && langMap[profile.language]) || (direction === 'rtl' ? 'ar' : 'en');
+  }, [direction, profile?.language]);
 
   // Theme management: Default to system, but respect manual override if present
   const [isDarkMode, setIsDarkMode] = useState(() => {
@@ -685,7 +698,42 @@ export default function App() {
           />
         );
 
-      case 'settings':
+      case 'settings': {
+        const ALL_SUPPORTED_LANGUAGES: { id: LanguagePreference; label: string; flag: string; nativeName: string }[] = [
+          { id: 'French', label: 'French', flag: '🇫🇷', nativeName: 'Français' },
+          { id: 'English', label: 'English', flag: '🇬🇧', nativeName: 'English' },
+          { id: 'Arabic', label: 'Arabic', flag: '🇸🇦', nativeName: 'العربية' },
+          { id: 'Egyptian Ammiya', label: 'Egyptian Ammiya', flag: '🇪🇬', nativeName: 'مصري' },
+          { id: 'Spanish', label: 'Spanish', flag: '🇪🇸', nativeName: 'Español' },
+          { id: 'German', label: 'German', flag: '🇩🇪', nativeName: 'Deutsch' },
+          { id: 'Italian', label: 'Italian', flag: '🇮🇹', nativeName: 'Italiano' },
+          { id: 'Portuguese', label: 'Portuguese', flag: '🇵🇹', nativeName: 'Português' },
+          { id: 'Russian', label: 'Russian', flag: '🇷🇺', nativeName: 'Русский' },
+          { id: 'Chinese', label: 'Chinese', flag: '🇨🇳', nativeName: '中文' },
+          { id: 'Japanese', label: 'Japanese', flag: '🇯🇵', nativeName: '日本語' },
+        ];
+
+        const handleLanguageChange = async (newLang: LanguagePreference) => {
+          if (!profile?.uid) return;
+          const previousLang = profile.language;
+          setProfile({ ...profile, language: newLang });
+          const path = `users/${profile.uid}`;
+          try {
+            await setDoc(doc(db, path), cleanDataForFirestore({ language: newLang }), { merge: true });
+            toast.success(
+              localize(newLang, 'Language updated successfully', 'تم تحديث اللغة بنجاح'),
+              localize(newLang, 'Language Selection', 'اختيار اللغة')
+            );
+          } catch (err) {
+            console.error('Failed to update language in settings:', err);
+            setProfile({ ...profile, language: previousLang });
+            toast.error(
+              localize(previousLang, 'Failed to update language. Please check your connection.', 'فشل تحديث اللغة. تحقق من اتصالك.'),
+              localize(previousLang, 'Update Error', 'خطأ في التحديث')
+            );
+          }
+        };
+
         return (
           <div className="flex-1 flex flex-col bg-slate-50 relative overflow-hidden">
             <header className="p-6 md:p-10 shrink-0 flex items-center gap-3">
@@ -706,31 +754,81 @@ export default function App() {
                 <Menu className="w-6 h-6" />
               </button>
             </header>
-            <div className="flex-1 flex items-center justify-center p-6 overflow-y-auto">
-              <div className="bg-white rounded-[40px] border border-slate-100 shadow-2xl max-w-2xl w-full p-8 md:p-12 space-y-10">
+            <div className="flex-1 flex items-center justify-center p-4 sm:p-6 overflow-y-auto">
+              <div className="bg-white rounded-[32px] sm:rounded-[40px] border border-slate-100 shadow-2xl max-w-2xl w-full p-6 sm:p-8 md:p-12 space-y-8 my-auto">
                 <div className="text-center space-y-2">
                   <h2 className="text-2xl md:text-3xl font-black text-slate-900 uppercase tracking-tighter">{getTranslation(profile.language, 'settings')}</h2>
                   <div className="h-1.5 w-20 bg-primary mx-auto rounded-full" />
                 </div>
 
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                {/* Language Selection Card */}
+                <div className="p-5 sm:p-6 bg-slate-50 rounded-3xl border border-slate-100 space-y-4">
+                  <div className="flex items-center gap-2 text-primary">
+                    <Globe className="w-5 h-5" />
+                    <h3 className="text-sm font-black uppercase tracking-widest">
+                      {localize(profile.language, 'Language Selection', 'اختيار اللغة')}
+                    </h3>
+                  </div>
+                  <p className="text-[11px] text-slate-500 leading-relaxed font-medium">
+                    {localize(
+                      profile.language,
+                      'Choose your preferred system & AI communication language',
+                      'اختر لغة واجهة النظام والتواصل والتوجيه مع المساعد الذكي'
+                    )}
+                  </p>
+                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5 pt-1">
+                    {ALL_SUPPORTED_LANGUAGES.map((lang) => {
+                      const isSelected = profile.language === lang.id;
+                      return (
+                        <button
+                          key={lang.id}
+                          onClick={() => handleLanguageChange(lang.id)}
+                          className={`p-3 rounded-2xl border flex items-center justify-between transition-all active:scale-95 text-start ${
+                            isSelected
+                              ? 'border-primary bg-primary/10 shadow-sm text-primary font-bold'
+                              : 'border-slate-200 bg-white hover:border-primary/40 text-slate-800'
+                          }`}
+                        >
+                          <div className="flex items-center gap-2 min-w-0">
+                            <span className="text-lg shrink-0">{lang.flag}</span>
+                            <div className="truncate">
+                              <p className="text-xs font-bold leading-none">{lang.nativeName}</p>
+                              <p className="text-[10px] text-slate-400 mt-0.5 truncate">{lang.label}</p>
+                            </div>
+                          </div>
+                          {isSelected && <Check className="w-4 h-4 text-primary shrink-0 ml-1" />}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                    <div className="p-6 bg-slate-50 rounded-3xl border border-slate-100 space-y-3">
                      <div className="flex items-center gap-2 text-primary">
                        <Settings className="w-5 h-5" />
-                       <h3 className="text-sm font-black uppercase tracking-widest">Core Parameters</h3>
+                       <h3 className="text-sm font-black uppercase tracking-widest">{localize(profile.language, 'Core Parameters', 'المعايير الأساسية')}</h3>
                      </div>
                      <p className="text-[11px] text-slate-500 leading-relaxed font-medium">
-                       Fundamental configuration (IQ, Level, Role). These are recalibrated automatically based on your performance and institutional metadata.
+                       {localize(
+                         profile.language,
+                         'Fundamental configuration (IQ, Level, Role). These are recalibrated automatically based on your performance and institutional metadata.',
+                         'التكوين الأساسي (المستوى المعرفي، الدرجة، التخصص). تتم معايرتها تلقائياً وفق أدائك.'
+                       )}
                      </p>
                    </div>
 
                    <div className="p-6 bg-slate-50 rounded-3xl border border-slate-100 space-y-4">
                      <div className="flex items-center gap-2 text-indigo-600">
                        {isDarkMode ? <Moon className="w-5 h-5" /> : <Sun className="w-5 h-5" />}
-                       <h3 className="text-sm font-black uppercase tracking-widest">Interface Theme</h3>
+                       <h3 className="text-sm font-black uppercase tracking-widest">{localize(profile.language, 'Interface Theme', 'مظهر الواجهة')}</h3>
                      </div>
                      <p className="text-[11px] text-slate-500 leading-relaxed font-medium">
-                       Switch between light and dark visual themes to reduce eye strain in low-light environments.
+                       {localize(
+                         profile.language,
+                         'Switch between light and dark visual themes to reduce eye strain in low-light environments.',
+                         'التبديل بين الوضع الليلي والنهاري لتقليل إجهاد العين في الإضاءة الخافتة.'
+                       )}
                      </p>
                      <button
                        onClick={toggleTheme}
@@ -740,21 +838,11 @@ export default function App() {
                            : 'bg-slate-900 text-white hover:bg-slate-800'
                        }`}
                      >
-                       {isDarkMode ? 'Enable Light Mode' : 'Enable Dark Mode'}
+                       {isDarkMode 
+                         ? localize(profile.language, 'Enable Light Mode', 'تفعيل الوضع النهاري')
+                         : localize(profile.language, 'Enable Dark Mode', 'تفعيل الوضع الليلي')}
                      </button>
                    </div>
-                </div>
-
-                 <div className="p-8 bg-slate-900 rounded-[32px] text-white shadow-2xl space-y-4">
-                   <div className="flex items-center gap-3">
-                     <div className="p-2 bg-white/10 rounded-xl">
-                       <Loader2 className="w-4 h-4 animate-spin text-primary" />
-                     </div>
-                     <h3 className="text-xs font-black uppercase tracking-[0.2em]">Maintenance Active</h3>
-                   </div>
-                   <p className="text-xs text-slate-400 font-medium leading-relaxed">
-                     Live adjustment of settings is locked during the initial phase. Full manual bypass controls will be available in the next version.
-                   </p>
                 </div>
 
                 <button 
@@ -762,13 +850,14 @@ export default function App() {
                   className="w-full py-5 bg-slate-100 text-slate-900 rounded-3xl text-xs font-black uppercase tracking-widest hover:bg-slate-200 active:scale-95 transition-all flex items-center justify-center gap-2"
                 >
                   {isAccessibilityUser(profile)
-                    ? (isRTL(profile.language) ? 'العودة لمركز إمكانية الوصول' : 'Return to Accessibility Hub')
+                    ? (isRTL(profile.language) ? 'العودة لمركز إمكانية الوصول' : localize(profile.language, 'Return to Accessibility Hub', 'العودة لمركز إمكانية الوصول'))
                     : getTranslation(profile.language, 'returnToChat')}
                 </button>
               </div>
             </div>
           </div>
         );
+      }
       default:
         return (
           <>

@@ -593,6 +593,43 @@ async function run() {
     assert(canAccessView(a11yUser as any, 'france', false) === true, 'Accessibility user can access France Travel Voice');
   }
 
+  // 14. Multi-Language & Disability System Localization (All 11 Languages)
+  console.log('\n[14] Multi-Language & Disability System Localization (All 11 Languages)');
+  {
+    // French disability modes and actions
+    assert(localize('French', '⚡ Motor & Euphonia') === '⚡ Moteur & Euphonia', 'French: ⚡ Motor & Euphonia');
+    assert(localize('French', '👁️ Visual Companion') === '👁️ Compagnon Visuel', 'French: 👁️ Visual Companion');
+    assert(localize('French', '🤖 AI Sign Studio') === '🤖 Studio LSF par IA', 'French: 🤖 AI Sign Studio');
+    assert(localize('French', '🤝 Two-Way Bridge') === '🤝 Passerelle de Communication', 'French: 🤝 Two-Way Bridge');
+    assert(localize('French', '💬 Text Chat') === '💬 Discussion Textuelle', 'French: 💬 Text Chat');
+
+    // Multi-language coverage for other supported languages
+    assert(localize('Spanish', '⚡ Motor & Euphonia') === '⚡ Motor y Euphonia', 'Spanish: ⚡ Motor & Euphonia');
+    assert(localize('German', '⚡ Motor & Euphonia') === '⚡ Motorik & Euphonia', 'German: ⚡ Motor & Euphonia');
+    assert(localize('Italian', '⚡ Motor & Euphonia') === '⚡ Motorio ed Euphonia', 'Italian: ⚡ Motor & Euphonia');
+    assert(localize('Russian', '⚡ Motor & Euphonia') === '⚡ Моторный и Euphonia', 'Russian: ⚡ Motor & Euphonia');
+    assert(localize('Chinese', '⚡ Motor & Euphonia') === '⚡ 运动与 Euphonia', 'Chinese: ⚡ Motor & Euphonia');
+    assert(localize('Japanese', '⚡ Motor & Euphonia') === '⚡ モーター＆Euphonia', 'Japanese: ⚡ Motor & Euphonia');
+
+    // Language code alias resolution (fr, es, de, it, pt, ru, zh, ja)
+    assert(localize('es', '⚡ Motor & Euphonia') === '⚡ Motor y Euphonia', 'Alias "es" resolves to Spanish');
+    assert(localize('de', '⚡ Motor & Euphonia') === '⚡ Motorik & Euphonia', 'Alias "de" resolves to German');
+    assert(localize('zh', '⚡ Motor & Euphonia') === '⚡ 运动与 Euphonia', 'Alias "zh" resolves to Chinese');
+
+    // Arabic & Egyptian Ammiya RTL fallback preservation
+    assert(localize('Arabic', 'Hello', 'مرحبا') === 'مرحبا', 'Arabic returns Arabic fallback text');
+    assert(localize('Egyptian Ammiya', 'Hello', 'أهلا') === 'أهلا', 'Egyptian Ammiya returns Arabic fallback text');
+
+    // AI persona incorporates configured user language
+    const profileSpanish = { level: 'Advanced', language: 'Spanish', accessibilityMode: 'None' };
+    const personaSpanish = buildPersona(profileSpanish as any);
+    assert(personaSpanish.includes('Configured Language: Spanish'), 'Persona includes Configured Language for Spanish');
+
+    const profileFrench = { level: 'Advanced', language: 'French', accessibilityMode: 'None' };
+    const personaFrench = buildPersona(profileFrench as any);
+    assert(personaFrench.includes('Configured Language: French'), 'Persona includes Configured Language for French');
+  }
+
   console.log(`\n========================================`);
   console.log(`Test Results: ${totalPassed} Passed, ${totalFailed} Failed`);
   console.log(`========================================\n`);

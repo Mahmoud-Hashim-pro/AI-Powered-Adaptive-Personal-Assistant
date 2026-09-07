@@ -1,10 +1,10 @@
 import { localize } from '../lib/translations';
 import React from 'react';
-import { UserProfile, AccessibilityMode, Message } from '../types';
-import { Settings, Eye, Accessibility, Menu, Sparkles, User, Ear, Mic, Brain, ArrowLeft, MessageSquare, Activity } from 'lucide-react';
+import { UserProfile, AccessibilityMode, Message, LanguagePreference } from '../types';
+import { Settings, Eye, Accessibility, Menu, Sparkles, User, Ear, Mic, Brain, ArrowLeft, MessageSquare, Activity, Globe, Check } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { doc, setDoc } from 'firebase/firestore';
-import { db, handleFirestoreError, OperationType } from '../lib/firebase';
+import { db, handleFirestoreError, OperationType, cleanDataForFirestore } from '../lib/firebase';
 import { toast } from './Toast';
 import SignVideoStudio from './SignVideoStudio';
 import HumanCommunicationBridge from './HumanCommunicationBridge';
@@ -53,6 +53,41 @@ const DisabilityModeView = React.forwardRef<ChatInterfaceRef, DisabilityModeView
   // otherwise two camera pipelines fight over the device.
   React.useEffect(() => { onTabChange?.(activeTab); }, [activeTab]);
   React.useEffect(() => () => { onTabChange?.('chat'); }, []);
+
+  const SUPPORTED_LANGUAGES: { id: LanguagePreference; label: string; flag: string; nativeName: string }[] = [
+    { id: 'French', label: 'French', flag: '🇫🇷', nativeName: 'Français' },
+    { id: 'English', label: 'English', flag: '🇬🇧', nativeName: 'English' },
+    { id: 'Arabic', label: 'Arabic', flag: '🇸🇦', nativeName: 'العربية' },
+    { id: 'Egyptian Ammiya', label: 'Egyptian Ammiya', flag: '🇪🇬', nativeName: 'مصري' },
+    { id: 'Spanish', label: 'Spanish', flag: '🇪🇸', nativeName: 'Español' },
+    { id: 'German', label: 'German', flag: '🇩🇪', nativeName: 'Deutsch' },
+    { id: 'Italian', label: 'Italian', flag: '🇮🇹', nativeName: 'Italiano' },
+    { id: 'Portuguese', label: 'Portuguese', flag: '🇵🇹', nativeName: 'Português' },
+    { id: 'Russian', label: 'Russian', flag: '🇷🇺', nativeName: 'Русский' },
+    { id: 'Chinese', label: 'Chinese', flag: '🇨🇳', nativeName: '中文' },
+    { id: 'Japanese', label: 'Japanese', flag: '🇯🇵', nativeName: '日本語' },
+  ];
+
+  const updateLanguage = async (newLang: LanguagePreference) => {
+    if (!profile?.uid) return;
+    const previousLang = profile.language;
+    if (setProfile) setProfile({ ...profile, language: newLang });
+    const path = `users/${profile.uid}`;
+    try {
+      await setDoc(doc(db, path), cleanDataForFirestore({ language: newLang }), { merge: true });
+      toast.success(
+        localize(newLang, 'Language updated successfully', 'تم تحديث اللغة بنجاح'),
+        localize(newLang, 'Language', 'اللغة')
+      );
+    } catch (err) {
+      console.error('Failed to update language:', err);
+      if (setProfile) setProfile({ ...profile, language: previousLang });
+      toast.error(
+        localize(profile?.language, 'Failed to update language. Please check your connection.', 'فشل تحديث اللغة. تحقق من اتصالك.'),
+        localize(profile?.language, 'Update Error', 'خطأ في التحديث')
+      );
+    }
+  };
 
   const updateAccessibilityMode = async (mode: AccessibilityMode) => {
     if (!profile?.uid) return;
@@ -252,72 +287,120 @@ const DisabilityModeView = React.forwardRef<ChatInterfaceRef, DisabilityModeView
               exit={{ opacity: 0, y: -10 }}
               className="w-full h-full overflow-y-auto custom-scrollbar p-6 md:p-10"
             >
-              <div className="max-w-4xl mx-auto space-y-10 pb-20">
-              <div className="bg-bg-card p-8 md:p-10 rounded-2xl shadow-sm border border-border">
-                <div className="mb-8">
-                  <h2 className="text-xl font-semibold text-text-main tracking-tight mb-1">{getTranslation(profile.language, 'accessibilityProfiles')}</h2>
-                  <p className="text-sm text-text-muted">{getTranslation(profile.language, 'accessibilityModeDescription')}</p>
+              <div className="max-w-4xl mx-auto space-y-8 pb-20">
+                {/* Language Selection Card */}
+                <div className="bg-bg-card p-6 sm:p-8 md:p-10 rounded-2xl shadow-sm border border-border">
+                  <div className="mb-6">
+                    <div className="flex items-center gap-2 text-primary mb-1">
+                      <Globe className="w-5 h-5" />
+                      <h2 className="text-xl font-semibold text-text-main tracking-tight">
+                        {localize(profile.language, 'Language Selection', 'اختيار اللغة')}
+                      </h2>
+                    </div>
+                    <p className="text-sm text-text-muted">
+                      {localize(
+                        profile.language,
+                        'Choose your preferred system & AI communication language',
+                        'اختر لغة النظام والتواصل مع المساعد الذكي'
+                      )}
+                    </p>
+                  </div>
+
+                  <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
+                    {SUPPORTED_LANGUAGES.map((lang) => {
+                      const isSelected = profile.language === lang.id;
+                      return (
+                        <button
+                          key={lang.id}
+                          onClick={() => updateLanguage(lang.id)}
+                          className={`p-3 sm:p-3.5 rounded-xl border flex items-center justify-between transition-all active:scale-95 ${
+                            isSelected
+                              ? 'border-primary bg-primary/10 shadow-sm text-primary font-bold'
+                              : 'border-border bg-bg-main hover:border-primary/40 text-text-main'
+                          }`}
+                        >
+                          <div className="flex items-center gap-2 min-w-0">
+                            <span className="text-lg shrink-0">{lang.flag}</span>
+                            <div className="text-start truncate">
+                              <p className="text-xs font-bold leading-none">{lang.nativeName}</p>
+                              <p className="text-[10px] text-text-muted mt-0.5 truncate">{lang.label}</p>
+                            </div>
+                          </div>
+                          {isSelected && <Check className="w-4 h-4 text-primary shrink-0 ml-1" />}
+                        </button>
+                      );
+                    })}
+                  </div>
                 </div>
-                
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  {(['None', 'Motor-Euphonia', 'Sign-Only', 'Speech', 'Visual', 'Vocal-Deaf'] as AccessibilityMode[]).map((mode) => (
-                    <button
-                      key={mode}
-                      onClick={() => updateAccessibilityMode(mode)}
-                      className={`text-start p-5 rounded-xl border transition-all relative ${
-                        profile.accessibilityMode === mode 
-                          ? 'border-primary bg-primary/5 shadow-sm' 
-                          : 'border-border bg-bg-card hover:border-border hover:bg-bg-main'
-                      }`}
-                    >
-                      <div className="flex items-start gap-4 relative z-10">
-                        <div className={`mt-0.5 p-2 rounded-lg ${
+
+                {/* Accessibility Profiles Card */}
+                <div className="bg-bg-card p-6 sm:p-8 md:p-10 rounded-2xl shadow-sm border border-border">
+                  <div className="mb-8">
+                    <h2 className="text-xl font-semibold text-text-main tracking-tight mb-1">{getTranslation(profile.language, 'accessibilityProfiles')}</h2>
+                    <p className="text-sm text-text-muted">{getTranslation(profile.language, 'accessibilityModeDescription')}</p>
+                  </div>
+                  
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    {(['None', 'Motor-Euphonia', 'Sign-Only', 'Speech', 'Visual', 'Vocal-Deaf'] as AccessibilityMode[]).map((mode) => (
+                      <button
+                        key={mode}
+                        onClick={() => updateAccessibilityMode(mode)}
+                        className={`text-start p-5 rounded-xl border transition-all relative ${
                           profile.accessibilityMode === mode 
-                            ? 'bg-primary text-white' 
-                            : 'bg-surface-3 text-text-muted'
-                        }`}>
-                          {getModeIcon(mode)}
-                        </div>
-                        <div>
-                          <h3 className={`text-sm font-semibold mb-1 ${
-                            profile.accessibilityMode === mode ? 'text-primary' : 'text-text-main'
+                            ? 'border-primary bg-primary/5 shadow-sm' 
+                            : 'border-border bg-bg-card hover:border-border hover:bg-bg-main'
+                        }`}
+                      >
+                        <div className="flex items-start gap-4 relative z-10">
+                          <div className={`mt-0.5 p-2 rounded-lg ${
+                            profile.accessibilityMode === mode 
+                              ? 'bg-primary text-white' 
+                              : 'bg-surface-3 text-text-muted'
                           }`}>
-                            {mode === 'None' ? getTranslation(profile.language, 'standardProtocol')
-                              : mode === 'Motor-Euphonia' ? localize(profile.language, 'Motor & Euphonia', 'تحكم حركي وإيفونيا')
-                              : mode === 'Speech' ? localize(profile.language, 'Speech', 'النطق')
-                              : mode === 'Visual' ? localize(profile.language, 'Visual', 'بصري')
-                              : mode === 'Vocal-Deaf' ? localize(profile.language, 'Vocal-Deaf', 'أصمّ ناطق')
-                              : mode === 'Sign-Only' ? localize(profile.language, 'Sign-Only', 'إشارة فقط')
-                              : mode}
-                          </h3>
-                          <p className="text-xs text-text-muted leading-relaxed font-medium">
-                            {getModeDescription(mode)}
-                          </p>
+                            {getModeIcon(mode)}
+                          </div>
+                          <div>
+                            <h3 className={`text-sm font-semibold mb-1 ${
+                              profile.accessibilityMode === mode ? 'text-primary' : 'text-text-main'
+                            }`}>
+                              {mode === 'None' ? getTranslation(profile.language, 'standardProtocol')
+                                : mode === 'Motor-Euphonia' ? localize(profile.language, 'Motor & Euphonia', 'تحكم حركي وإيفونيا')
+                                : mode === 'Speech' ? localize(profile.language, 'Speech', 'النطق')
+                                : mode === 'Visual' ? localize(profile.language, 'Visual', 'بصري')
+                                : mode === 'Vocal-Deaf' ? localize(profile.language, 'Vocal-Deaf', 'أصمّ ناطق')
+                                : mode === 'Sign-Only' ? localize(profile.language, 'Sign-Only', 'إشارة فقط')
+                                : mode}
+                            </h3>
+                            <p className="text-xs text-text-muted leading-relaxed font-medium">
+                              {getModeDescription(mode)}
+                            </p>
+                          </div>
                         </div>
-                      </div>
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              <div className="bg-surface-3 p-8 rounded-2xl text-text-main shadow-md relative overflow-hidden flex flex-col md:flex-row items-center gap-6 border border-border">
-                <div className="absolute top-0 right-0 w-64 h-64 bg-primary/10 blur-3xl rounded-full pointer-events-none" />
-
-                <div className="p-4 bg-surface-2 rounded-2xl shrink-0">
-                  <Brain className="w-8 h-8 text-primary" />
+                      </button>
+                    ))}
+                  </div>
                 </div>
 
-                <div className="flex-1 relative z-10">
-                  <h3 className="text-base font-semibold tracking-wide mb-1.5 flex items-center gap-2">
-                    <Sparkles className="w-4 h-4 text-accent" /> Active Profile Context
-                  </h3>
-                  <p className="text-text-muted font-medium text-sm leading-relaxed max-w-2xl">
-                    By enabling an accessibility profile, the engine modifies its context generation. 
-                    Visual mode prioritizes layout structuring and large font metadata. Deaf modes enable real-time 
-                    gesture interpolation via our virtual signing avatar. Speech mode invokes zero-latency TTS responses.
-                  </p>
+                <div className="bg-surface-3 p-8 rounded-2xl text-text-main shadow-md relative overflow-hidden flex flex-col md:flex-row items-center gap-6 border border-border">
+                  <div className="absolute top-0 right-0 w-64 h-64 bg-primary/10 blur-3xl rounded-full pointer-events-none" />
+
+                  <div className="p-4 bg-surface-2 rounded-2xl shrink-0">
+                    <Brain className="w-8 h-8 text-primary" />
+                  </div>
+
+                  <div className="flex-1 relative z-10">
+                    <h3 className="text-base font-semibold tracking-wide mb-1.5 flex items-center gap-2">
+                      <Sparkles className="w-4 h-4 text-accent" /> {localize(profile.language, 'Active Profile Context', 'سياق الملف النشط')}
+                    </h3>
+                    <p className="text-text-muted font-medium text-sm leading-relaxed max-w-2xl">
+                      {localize(
+                        profile.language,
+                        'By enabling an accessibility profile, the engine modifies its context generation. Visual mode prioritizes layout structuring and large font metadata. Deaf modes enable real-time gesture interpolation via our virtual signing avatar. Speech mode invokes zero-latency TTS responses.',
+                        'بتفعيل ملف إمكانية الوصول، يقوم المحرك بتعديل توليد السياق تلقائياً. الوضع البصري يعطي الأولوية لترتيب العناصر ومطابقة الشاشة للقارئ الصوتي. أوضاع الصم تفعّل استوديو لغة الإشارة عبر الصورة الرمزية ثلاثية الأبعاد. والوضع الصوتي يفعّل الاستجابات الصوتية الفورية بدون تأخير.'
+                      )}
+                    </p>
+                  </div>
                 </div>
-              </div>
               </div>
             </motion.div>
           ) : activeTab === 'org' ? (

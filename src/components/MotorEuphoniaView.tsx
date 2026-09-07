@@ -1,4 +1,4 @@
-﻿import React, { useState, useEffect, useRef, useMemo } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import {
   UserProfile, VocalSoundTriggerConfig, AACCardItem, HeadTrackingConfig, VocalTriggerAction,
 } from '../types';
@@ -271,14 +271,25 @@ const GAME_BUBBLES = [
 ];
 
 export default function MotorEuphoniaView({ profile, onSendMessage }: MotorEuphoniaViewProps) {
-  const initialIsArabic = profile.language === 'Arabic' || profile.language === 'Egyptian Ammiya';
-  const [motorLang, setMotorLang] = useState<'ar' | 'en'>(initialIsArabic ? 'ar' : 'en');
+  const getInitialMotorLang = (): 'ar' | 'en' | 'fr' => {
+    if (profile.language === 'French') return 'fr';
+    if (profile.language === 'Arabic' || profile.language === 'Egyptian Ammiya') return 'ar';
+    return 'en';
+  };
+  const [motorLang, setMotorLang] = useState<'ar' | 'en' | 'fr'>(getInitialMotorLang);
 
   useEffect(() => {
-    setMotorLang(initialIsArabic ? 'ar' : 'en');
-  }, [initialIsArabic]);
+    setMotorLang(getInitialMotorLang());
+  }, [profile.language]);
 
   const isArabic = motorLang === 'ar';
+  const isFrench = motorLang === 'fr';
+
+  const tMotor = (en: string, ar: string, fr?: string) => {
+    if (motorLang === 'ar') return ar;
+    if (motorLang === 'fr') return fr || localize('French', en, ar);
+    return en;
+  };
 
   // Active Category Tab (Includes Eye Keyboard, Studio, Smart Room, Sensory, AI Class, Custom Bank & Eye Games)
   const [activeTab, setActiveTab] = useState<
@@ -1233,7 +1244,7 @@ export default function MotorEuphoniaView({ profile, onSendMessage }: MotorEupho
         try {
           const result = await transcribe({
             audioBlob: sample.blob,
-            langCode: profile?.language === 'Egyptian Ammiya' ? 'ar-EG' : isArabic ? 'ar-SA' : 'en-US',
+            langCode: motorLang === 'fr' ? 'fr-FR' : (profile?.language === 'Egyptian Ammiya' ? 'ar-EG' : isArabic ? 'ar-SA' : 'en-US'),
           });
           if (!mountedRef.current) return;
 
@@ -2093,10 +2104,16 @@ export default function MotorEuphoniaView({ profile, onSendMessage }: MotorEupho
       return;
     }
     if (cardId === 'kb-switchlang' || cardId === 'motor-lang-toggle') {
-      const next = motorLang === 'ar' ? 'en' : 'ar';
+      const next: 'ar' | 'en' | 'fr' = motorLang === 'ar' ? 'en' : motorLang === 'en' ? 'fr' : 'ar';
       setMotorLang(next);
-      setKbLang(next);
-      toast.info(next === 'ar' ? '🇪🇬 تم التحويل للغة العربية' : '🇬🇧 Switched to English');
+      setKbLang(next === 'ar' ? 'ar' : 'en');
+      toast.info(
+        next === 'fr'
+          ? '🇫🇷 Langue française activée'
+          : next === 'ar'
+          ? '🇪🇬 تم التحويل للغة العربية'
+          : '🇬🇧 Switched to English'
+      );
       return;
     }
 
@@ -2680,19 +2697,26 @@ export default function MotorEuphoniaView({ profile, onSendMessage }: MotorEupho
             </button>
           </div>
 
-          {/* Motor Language Switcher: Arabic <-> English */}
+          {/* Motor Language Switcher: Arabic <-> English <-> French */}
           <button
             data-aac-id="motor-lang-toggle"
             onClick={() => {
-              const next = motorLang === 'ar' ? 'en' : 'ar';
+              const next: 'ar' | 'en' | 'fr' = motorLang === 'ar' ? 'en' : motorLang === 'en' ? 'fr' : 'ar';
               setMotorLang(next);
-              toast.info(next === 'ar' ? '🇪🇬 تم التحويل للغة العربية' : '🇬🇧 Switched to English');
+              setKbLang(next === 'ar' ? 'ar' : 'en');
+              toast.info(
+                next === 'fr'
+                  ? '🇫🇷 Langue française activée'
+                  : next === 'ar'
+                  ? '🇪🇬 تم التحويل للغة العربية'
+                  : '🇬🇧 Switched to English'
+              );
             }}
             className="flex items-center gap-1.5 px-2.5 py-1 rounded-xl bg-slate-950 hover:bg-slate-900 border border-slate-800 text-slate-200 hover:text-white font-bold text-xs transition-all shadow-sm"
-            title={motorLang === 'ar' ? 'Switch interface to English' : 'التحويل للغة العربية'}
+            title={motorLang === 'ar' ? 'Switch to English' : motorLang === 'en' ? 'Passer au français' : 'التحويل للعربية'}
           >
             <Languages className="w-3.5 h-3.5 text-amber-400" />
-            <span>{motorLang === 'ar' ? 'عربي 🇪🇬' : 'EN 🇬🇧'}</span>
+            <span>{motorLang === 'ar' ? 'عربي 🇪🇬' : motorLang === 'fr' ? 'FR 🇫🇷' : 'EN 🇬🇧'}</span>
           </button>
 
 
