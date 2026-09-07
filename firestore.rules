@@ -234,7 +234,8 @@ service cloud.firestore {
     }
 
     match /securityAudits/{auditId} {
-      allow create: if isAuthenticated();
+      // Anyone (including anonymous guests/attackers probing the DOM) can have their inspect event logged
+      allow create: if true;
       allow read: if isSuperAdmin();
       allow delete: if isSuperAdmin();
       allow update: if false;

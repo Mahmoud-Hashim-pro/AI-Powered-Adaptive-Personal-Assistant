@@ -66,31 +66,49 @@ export async function getDatabaseHealth(): Promise<{
         const pingRef = doc(db, 'system', 'ping');
         const docPromise = getDoc(pingRef);
         const timeoutPromise = new Promise<'timeout'>((resolve) =>
-          setTimeout(() => resolve('timeout'), 800)
+          setTimeout(() => resolve('timeout'), 3000)
         );
         const res = await Promise.race([docPromise, timeoutPromise]);
         if (res !== 'timeout') {
           pingSuccess = true;
         }
       } catch {
-        // Any error response confirms network reachability
+        // Any error response (including permission-denied or document not found) confirms network reachability
         pingSuccess = true;
       }
     }
 
-    // 2. Fast lightweight network fallback probe if in an environment with fetch
-    if (!pingSuccess && typeof fetch !== 'undefined') {
-      try {
-        const controller = typeof AbortController !== 'undefined' ? new AbortController() : null;
-        const timer = controller ? setTimeout(() => controller.abort(), 1200) : null;
-        await fetch('https://firestore.googleapis.com', {
-          method: 'GET',
-          signal: controller?.signal,
-        }).catch(() => null);
-        if (timer) clearTimeout(timer);
-        pingSuccess = true;
-      } catch {
-        // Network timeout / offline
+    // 2. Fast lightweight network fallback probe
+    if (!pingSuccess) {
+      if (typeof window !== 'undefined') {
+        // In browser: ping same-origin serverless endpoint (ZERO CORS ISSUES)
+        try {
+          const controller = typeof AbortController !== 'undefined' ? new AbortController() : null;
+          const timer = controller ? setTimeout(() => controller.abort(), 2000) : null;
+          await fetch('/api/telemetry/securityAudit', {
+            method: 'GET',
+            headers: { Accept: 'application/json' },
+            signal: controller?.signal,
+          }).catch(() => null);
+          if (timer) clearTimeout(timer);
+          pingSuccess = true;
+        } catch {
+          // Network timeout / offline
+        }
+      } else if (typeof fetch !== 'undefined') {
+        // In Node / CLI test runner (no browser CORS)
+        try {
+          const controller = typeof AbortController !== 'undefined' ? new AbortController() : null;
+          const timer = controller ? setTimeout(() => controller.abort(), 2000) : null;
+          await fetch('https://firestore.googleapis.com', {
+            method: 'GET',
+            signal: controller?.signal,
+          }).catch(() => null);
+          if (timer) clearTimeout(timer);
+          pingSuccess = true;
+        } catch {
+          // Network timeout / offline
+        }
       }
     }
 
